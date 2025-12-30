@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Shadow -->
+  <ellipse cx="100" cy="185" rx="55" ry="12" fill="rgba(0,0,0,0.4)" />
+  <!-- Body Group -->
+  <g transform="translate(0, 15) rotate(5, 100, 100)">
+    <!-- Main Body -->
+    <circle cx="100" cy="100" r="70" fill="#FFD700" stroke="black" stroke-width="10" />
+    <!-- Highlight -->
+    <ellipse cx="76" cy="76" rx="23" ry="14" fill="rgba(255,255,255,0.6)" transform="rotate(-45, 76, 76)" />
+    <!-- Left Eye -->
+    <g transform="translate(76, 82)">
+      <circle cx="0" cy="0" r="23" fill="white" stroke="black" stroke-width="6" />
+      <circle cx="0" cy="0" r="9" fill="black" />
+      <circle cx="4" cy="-4" r="3" fill="white" />
+    </g>
+    <!-- Right Eye -->
+    <g transform="translate(124, 82)">
+      <circle cx="0" cy="0" r="23" fill="white" stroke="black" stroke-width="6" />
+      <circle cx="0" cy="0" r="9" fill="black" />
+      <circle cx="4" cy="-4" r="3" fill="white" />
+    </g>
+    <!-- Beak -->
+    <ellipse cx="100" cy="118" rx="35" ry="23" fill="#FF8C00" stroke="black" stroke-width="6" />
+    <circle cx="90" cy="113" r="2" fill="black" opacity="0.6" />
+    <circle cx="110" cy="113" r="2" fill="black" opacity="0.6" />
+  </g>
+</svg>

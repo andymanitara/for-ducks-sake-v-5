@@ -1,0 +1,18 @@
+{
+  "name": "For Ducks Sake",
+  "short_name": "For Ducks Sake",
+  "description": "A fast-paced, top-down survival game where you guide a cute duck through chaotic hazards.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFD700",
+  "theme_color": "#FFD700",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

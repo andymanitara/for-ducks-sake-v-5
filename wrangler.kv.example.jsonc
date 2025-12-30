@@ -1,0 +1,30 @@
+/**
+ * EXAMPLE CONFIGURATION FOR KV STORAGE
+ * 
+ * To enable real data storage (Leaderboards, Profiles):
+ * 1. Run `npx wrangler kv:namespace create LEADERBOARD_KV`
+ * 2. Copy the `kv_namespaces` block below
+ * 3. Paste it into your `wrangler.jsonc` file
+ * 4. Replace "REPLACE_WITH_YOUR_KV_ID" with the ID generated in step 1
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "duck-dodger-xw77qd7w",
+	"main": "worker/index.ts",
+	"compatibility_date": "2025-04-24",
+	"assets": {
+		"not_found_handling": "single-page-application",
+		"run_worker_first": ["/api/*", "!/api/docs/*"]
+	},
+	"observability": {
+		"enabled": true
+	},
+    // --- COPY THIS BLOCK TO wrangler.jsonc ---
+    "kv_namespaces": [
+        {
+            "binding": "LEADERBOARD_KV",
+            "id": "REPLACE_WITH_YOUR_KV_ID"
+        }
+    ]
+    // -----------------------------------------
+}
