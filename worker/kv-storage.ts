@@ -73,6 +73,8 @@ export interface UserProfile {
   claimedRewardDates?: string[]; // Array of dates (YYYY-MM-DD)
   // Achievements
   claimedAchievementIds?: string[];
+  // Challenge Completion
+  completedChallengeIds?: string[];
 }
 export interface Reward {
   id: string;
@@ -105,7 +107,7 @@ function getDailyMapId(dateString: string): string {
   const randomIndex = Math.floor(rng() * MAP_IDS.length);
   return MAP_IDS[randomIndex];
 }
-// Robust Mock Data
+// Robust Mock Data - Expanded for better UI testing
 const MOCK_LEADERBOARD_GLOBAL: LeaderboardEntry[] = [
     { rank: 1, userId: 'mock1', name: 'SpeedyDuck99', score: 125430, skinId: 'astro', date: Date.now() },
     { rank: 2, userId: 'mock2', name: 'QuackMaster', score: 98210, skinId: 'ninja', date: Date.now() - 3600000 },
@@ -117,18 +119,64 @@ const MOCK_LEADERBOARD_GLOBAL: LeaderboardEntry[] = [
     { rank: 8, userId: 'mock8', name: 'DuckNorris', score: 32100, skinId: 'ninja', date: Date.now() - 25200000 },
     { rank: 9, userId: 'mock9', name: 'QuackSparrow', score: 21000, skinId: 'gentleman', date: Date.now() - 28800000 },
     { rank: 10, userId: 'mock10', name: 'DuckVader', score: 15000, skinId: 'astro', date: Date.now() - 32400000 },
+    { rank: 11, userId: 'mock11', name: 'PuddleJumper', score: 12500, skinId: 'default', date: Date.now() - 36000000 },
+    { rank: 12, userId: 'mock12', name: 'BillNye', score: 10000, skinId: 'cool', date: Date.now() - 40000000 },
+    { rank: 13, userId: 'mock13', name: 'Eggcellent', score: 8500, skinId: 'pinky', date: Date.now() - 44000000 },
+    { rank: 14, userId: 'mock14', name: 'QuackAttack', score: 7000, skinId: 'default', date: Date.now() - 48000000 },
+    { rank: 15, userId: 'mock15', name: 'JustADuck', score: 5000, skinId: 'default', date: Date.now() - 52000000 },
 ];
 const MOCK_LEADERBOARD_DAILY: LeaderboardEntry[] = [
-    { rank: 1, userId: 'mock11', name: 'DailyGrinder', score: 45000, skinId: 'ninja', date: Date.now() - 1800000 },
-    { rank: 2, userId: 'mock12', name: 'EarlyBird', score: 42100, skinId: 'default', date: Date.now() - 3600000 },
-    { rank: 3, userId: 'mock13', name: 'JustWokeUp', score: 38500, skinId: 'pinky', date: Date.now() - 5400000 },
-    { rank: 4, userId: 'mock14', name: 'CoffeeDuck', score: 35000, skinId: 'cool', date: Date.now() - 7200000 },
-    { rank: 5, userId: 'mock15', name: 'SunriseSurfer', score: 31000, skinId: 'lafleur', date: Date.now() - 9000000 },
+    { rank: 1, userId: 'mockD1', name: 'DailyGrinder', score: 45000, skinId: 'ninja', date: Date.now() - 1800000 },
+    { rank: 2, userId: 'mockD2', name: 'EarlyBird', score: 42100, skinId: 'default', date: Date.now() - 3600000 },
+    { rank: 3, userId: 'mockD3', name: 'JustWokeUp', score: 38500, skinId: 'pinky', date: Date.now() - 5400000 },
+    { rank: 4, userId: 'mockD4', name: 'CoffeeDuck', score: 35000, skinId: 'cool', date: Date.now() - 7200000 },
+    { rank: 5, userId: 'mockD5', name: 'SunriseSurfer', score: 31000, skinId: 'lafleur', date: Date.now() - 9000000 },
+    { rank: 6, userId: 'mockD6', name: 'MorningGlory', score: 28000, skinId: 'gentleman', date: Date.now() - 10800000 },
+    { rank: 7, userId: 'mockD7', name: 'BreakfastClub', score: 25000, skinId: 'astro', date: Date.now() - 12600000 },
+    { rank: 8, userId: 'mockD8', name: 'DawnPatrol', score: 22000, skinId: 'ninja', date: Date.now() - 14400000 },
+    { rank: 9, userId: 'mockD9', name: 'NoonRider', score: 19000, skinId: 'cool', date: Date.now() - 16200000 },
+    { rank: 10, userId: 'mockD10', name: 'LunchBreak', score: 16000, skinId: 'default', date: Date.now() - 18000000 },
+    { rank: 11, userId: 'mockD11', name: 'AfternoonTea', score: 13000, skinId: 'pinky', date: Date.now() - 19800000 },
+    { rank: 12, userId: 'mockD12', name: 'SunsetChaser', score: 10000, skinId: 'lafleur', date: Date.now() - 21600000 },
+    { rank: 13, userId: 'mockD13', name: 'NightOwl', score: 8000, skinId: 'gentleman', date: Date.now() - 23400000 },
+    { rank: 14, userId: 'mockD14', name: 'MidnightSnack', score: 6000, skinId: 'astro', date: Date.now() - 25200000 },
+    { rank: 15, userId: 'mockD15', name: 'Insomniac', score: 4000, skinId: 'default', date: Date.now() - 27000000 },
 ];
 const MOCK_LEADERBOARD_CHALLENGE: LeaderboardEntry[] = [
     { rank: 1, userId: 'mockC1', name: 'DailyChamp', score: 55000, skinId: 'ninja', date: Date.now() },
     { rank: 2, userId: 'mockC2', name: 'SeedMaster', score: 48000, skinId: 'default', date: Date.now() - 100000 },
     { rank: 3, userId: 'mockC3', name: 'PatternPro', score: 42000, skinId: 'pinky', date: Date.now() - 200000 },
+    { rank: 4, userId: 'mockC4', name: 'LuckyDuck', score: 38500, skinId: 'cool', date: Date.now() - 300000 },
+    { rank: 5, userId: 'mockC5', name: 'QuackAttack', score: 35000, skinId: 'lafleur', date: Date.now() - 400000 },
+    { rank: 6, userId: 'mockC6', name: 'WaddleOn', score: 31200, skinId: 'gentleman', date: Date.now() - 500000 },
+    { rank: 7, userId: 'mockC7', name: 'FeatherFury', score: 28900, skinId: 'astro', date: Date.now() - 600000 },
+    { rank: 8, userId: 'mockC8', name: 'PondPatrol', score: 25400, skinId: 'default', date: Date.now() - 700000 },
+    { rank: 9, userId: 'mockC9', name: 'DuckNorris', score: 22100, skinId: 'ninja', date: Date.now() - 800000 },
+    { rank: 10, userId: 'mockC10', name: 'BillGates', score: 19800, skinId: 'cool', date: Date.now() - 900000 },
+    { rank: 11, userId: 'mockC11', name: 'QuackSparrow', score: 17500, skinId: 'gentleman', date: Date.now() - 1000000 },
+    { rank: 12, userId: 'mockC12', name: 'DuckVader', score: 15200, skinId: 'astro', date: Date.now() - 1100000 },
+    { rank: 13, userId: 'mockC13', name: 'SirQuacks', score: 12900, skinId: 'lafleur', date: Date.now() - 1200000 },
+    { rank: 14, userId: 'mockC14', name: 'MightyDuck', score: 10600, skinId: 'pinky', date: Date.now() - 1300000 },
+    { rank: 15, userId: 'mockC15', name: 'JustADuck', score: 8300, skinId: 'default', date: Date.now() - 1400000 },
+    { rank: 16, userId: 'mockC16', name: 'LateBird', score: 6000, skinId: 'default', date: Date.now() - 1500000 },
+];
+const MOCK_LEADERBOARD_CHALLENGE_GLOBAL: LeaderboardEntry[] = [
+    { rank: 1, userId: 'mockCG1', name: 'ChallengeKing', score: 150000, skinId: 'ninja', date: Date.now() },
+    { rank: 2, userId: 'mockCG2', name: 'MapMaster', score: 140000, skinId: 'default', date: Date.now() - 100000 },
+    { rank: 3, userId: 'mockCG3', name: 'ProDodger', score: 130000, skinId: 'cool', date: Date.now() - 200000 },
+    { rank: 4, userId: 'mockCG4', name: 'SpeedDemon', score: 120000, skinId: 'astro', date: Date.now() - 300000 },
+    { rank: 5, userId: 'mockCG5', name: 'LaserDodger', score: 110000, skinId: 'cyber', date: Date.now() - 400000 },
+    { rank: 6, userId: 'mockCG6', name: 'GlitchHunter', score: 100000, skinId: 'glitch_duck', date: Date.now() - 500000 },
+    { rank: 7, userId: 'mockCG7', name: 'IceBreaker', score: 90000, skinId: 'cool', date: Date.now() - 600000 },
+    { rank: 8, userId: 'mockCG8', name: 'CitySlicker', score: 80000, skinId: 'ninja', date: Date.now() - 700000 },
+    { rank: 9, userId: 'mockCG9', name: 'GymRat', score: 70000, skinId: 'lafleur', date: Date.now() - 800000 },
+    { rank: 10, userId: 'mockCG10', name: 'PoolShark', score: 60000, skinId: 'gentleman', date: Date.now() - 900000 },
+    { rank: 11, userId: 'mockCG11', name: 'SantaClaws', score: 50000, skinId: 'sir_quacks_alot', date: Date.now() - 1000000 },
+    { rank: 12, userId: 'mockCG12', name: 'BubbleBoy', score: 40000, skinId: 'quackers', date: Date.now() - 1100000 },
+    { rank: 13, userId: 'mockCG13', name: 'PinkyPromise', score: 30000, skinId: 'pinky', date: Date.now() - 1200000 },
+    { rank: 14, userId: 'mockCG14', name: 'GoldenEgg', score: 20000, skinId: 'mother_ducker', date: Date.now() - 1300000 },
+    { rank: 15, userId: 'mockCG15', name: 'NewbieDuck', score: 10000, skinId: 'default', date: Date.now() - 1400000 },
+    { rank: 16, userId: 'mockCG16', name: 'TryHard', score: 5000, skinId: 'magma', date: Date.now() - 1500000 },
 ];
 // In-memory storage for mock mode (resets on worker restart)
 const MOCK_USERS = new Map<string, UserProfile>();
@@ -224,7 +272,8 @@ export class KVStorage {
           dailyAttempts,
           lastDailyAttemptDate,
           claimedRewardDates: Array.from(new Set([...(existing.claimedRewardDates || []), ...(incoming.claimedRewardDates || [])])),
-          claimedAchievementIds: Array.from(new Set([...(existing.claimedAchievementIds || []), ...(incoming.claimedAchievementIds || [])]))
+          claimedAchievementIds: Array.from(new Set([...(existing.claimedAchievementIds || []), ...(incoming.claimedAchievementIds || [])])),
+          completedChallengeIds: Array.from(new Set([...(existing.completedChallengeIds || []), ...(incoming.completedChallengeIds || [])]))
       };
   }
   private mergeFriendRequests(existing: FriendRequest[] = [], incoming: FriendRequest[] = []): FriendRequest[] {
@@ -256,9 +305,10 @@ export class KVStorage {
       }
       return merged;
   }
-  async getLeaderboard(mapId: string, type: 'global' | 'daily' | 'daily_challenge', day?: string): Promise<LeaderboardEntry[]> {
+  async getLeaderboard(mapId: string, type: 'global' | 'daily' | 'daily_challenge' | 'challenge_global' | 'challenge_daily', day?: string): Promise<LeaderboardEntry[]> {
     if (!this.kv) {
         if (type === 'daily_challenge') return MOCK_LEADERBOARD_CHALLENGE;
+        if (type === 'challenge_global' || type === 'challenge_daily') return MOCK_LEADERBOARD_CHALLENGE_GLOBAL;
         return type === 'daily' ? MOCK_LEADERBOARD_DAILY : MOCK_LEADERBOARD_GLOBAL;
     }
     let storageKey = `lb:global:map:${mapId}`;
@@ -266,6 +316,10 @@ export class KVStorage {
         storageKey = `lb:daily:${day}:map:${mapId}`;
     } else if (type === 'daily_challenge' && day) {
         storageKey = `lb:daily_challenge:${day}`;
+    } else if (type === 'challenge_global') {
+        storageKey = `lb:challenge:global:map:${mapId}`;
+    } else if (type === 'challenge_daily' && day) {
+        storageKey = `lb:challenge:daily:${day}:map:${mapId}`;
     }
     const list = await this.kv.get<LeaderboardEntry[]>(storageKey, 'json');
     return list || [];
@@ -304,7 +358,15 @@ export class KVStorage {
         return { daily: res, global: null };
     }
     if (mode === 'challenge') {
-        return { daily: null, global: null };
+        if (!this.kv) {
+             // Mock response for challenge mode
+             return { daily: { rank: 1, score }, global: { rank: 1, score } };
+        }
+        const globalKey = `lb:challenge:global:map:${mapId}`;
+        const dailyKey = `lb:challenge:daily:${dayUTC}:map:${mapId}`;
+        const globalRes = await this.updateList(globalKey, { userId, name: displayName, score, skinId, date: now, rank: 0 });
+        const dailyRes = await this.updateList(dailyKey, { userId, name: displayName, score, skinId, date: now, rank: 0 });
+        return { global: globalRes, daily: dailyRes };
     }
     if (!this.kv) {
         const calcRank = (list: LeaderboardEntry[], score: number) => {

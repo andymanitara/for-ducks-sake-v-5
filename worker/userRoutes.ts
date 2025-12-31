@@ -42,6 +42,8 @@ const UserSyncSchema = z.object({
     claimedRewardDates: z.array(z.string()).optional().default([]),
     // Achievements
     claimedAchievementIds: z.array(z.string()).optional().default([]),
+    // Challenge Completion
+    completedChallengeIds: z.array(z.string()).optional().default([]),
 });
 const ScoreSubmitSchema = z.object({
     userId: z.string(),
@@ -68,6 +70,19 @@ const ClaimRewardSchema = z.object({
     date: z.string(),
     coins: z.number(),
 });
+// Helper to validate Reset Token
+const validateResetToken = async (c: any, storage: KVStorage) => {
+    const clientToken = c.req.header('X-Reset-Token');
+    // If client sends a token, we MUST validate it against the server's current token
+    if (clientToken) {
+        const serverToken = await storage.getResetToken();
+        if (clientToken !== serverToken) {
+            return c.json({ success: false, error: 'RESET_REQUIRED', reset: true }, 409);
+        }
+    }
+    // If no client token, we proceed (legacy/initial load behavior)
+    return null;
+};
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
     // Register Auth Routes
     authRoutes(app as any);
@@ -116,6 +131,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     app.post('/api/user/sync', async (c) => {
         try {
             const storage = getStorage(c);
+            // Validate Token
+            const tokenError = await validateResetToken(c, storage);
+            if (tokenError) return tokenError;
             const body = await c.req.json();
             const data = UserSyncSchema.parse(body);
             const now = Date.now();
@@ -142,7 +160,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                 dailyAttempts: data.dailyAttempts,
                 lastDailyAttemptDate: data.lastDailyAttemptDate,
                 claimedRewardDates: data.claimedRewardDates,
-                claimedAchievementIds: data.claimedAchievementIds
+                claimedAchievementIds: data.claimedAchievementIds,
+                completedChallengeIds: data.completedChallengeIds
             };
             const savedProfile = await storage.saveUser(profileToSave);
             // Return the FULL merged profile so frontend can update
@@ -156,6 +175,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     app.post('/api/score/submit', async (c) => {
         try {
             const storage = getStorage(c);
+            // Validate Token
+            const tokenError = await validateResetToken(c, storage);
+            if (tokenError) return tokenError;
             const body = await c.req.json();
             const data = ScoreSubmitSchema.parse(body);
             const result = await storage.submitScore(
@@ -202,6 +224,29 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const mapId = c.req.query('mapId') || 'any';
             const day = c.req.query('day') || new Date().toISOString().split('T')[0];
             const data = await storage.getLeaderboard(mapId, 'daily_challenge', day);
+            return c.json({ success: true, data });
+        } catch (e: any) {
+            return c.json({ success: false, error: e.message }, 500);
+        }
+    });
+    app.get('/api/leaderboard/challenge_global', async (c) => {
+        try {
+            const storage = getStorage(c);
+            const mapId = c.req.query('mapId');
+            if (!mapId) return c.json({ success: false, error: 'Missing mapId' }, 400);
+            const data = await storage.getLeaderboard(mapId, 'challenge_global');
+            return c.json({ success: true, data });
+        } catch (e: any) {
+            return c.json({ success: false, error: e.message }, 500);
+        }
+    });
+    app.get('/api/leaderboard/challenge_daily', async (c) => {
+        try {
+            const storage = getStorage(c);
+            const mapId = c.req.query('mapId');
+            const day = c.req.query('day') || new Date().toISOString().split('T')[0];
+            if (!mapId) return c.json({ success: false, error: 'Missing mapId' }, 400);
+            const data = await storage.getLeaderboard(mapId, 'challenge_daily', day);
             return c.json({ success: true, data });
         } catch (e: any) {
             return c.json({ success: false, error: e.message }, 500);
@@ -292,6 +337,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     app.post('/api/challenges/create', async (c) => {
         try {
             const storage = getStorage(c);
+            // Validate Token
+            const tokenError = await validateResetToken(c, storage);
+            if (tokenError) return tokenError;
             const body = await c.req.json();
             const data = CreateChallengeSchema.parse(body);
             const fromUser = await storage.getUser(data.fromUserId);
@@ -319,6 +367,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     app.post('/api/challenges/update', async (c) => {
         try {
             const storage = getStorage(c);
+            // Validate Token
+            const tokenError = await validateResetToken(c, storage);
+            if (tokenError) return tokenError;
             const body = await c.req.json();
             const data = UpdateChallengeSchema.parse(body);
             const updates: any = { status: data.status };
@@ -335,6 +386,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     app.post('/api/rewards/claim', async (c) => {
         try {
             const storage = getStorage(c);
+            // Validate Token
+            const tokenError = await validateResetToken(c, storage);
+            if (tokenError) return tokenError;
             const body = await c.req.json();
             const data = ClaimRewardSchema.parse(body);
             const result = await storage.claimReward(data.userId, data.date, data.coins);
