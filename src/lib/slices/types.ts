@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { LeaderboardCategory, PlayerProfile, BiomeType, RunStats, LeaderboardEntry, Friend, FriendRequest, Challenge, Reward } from '@/types/game';
+import { LeaderboardCategory, PlayerProfile, BiomeType, RunStats, LeaderboardEntry, Friend, FriendRequest, Reward, GameMap, Challenge } from '@/types/game';
 // --- Slice Interfaces ---
 export interface GameSlice {
   status: 'menu' | 'playing' | 'paused' | 'game_over';
@@ -17,6 +17,8 @@ export interface GameSlice {
   shareRequested: boolean;
   // Server Reset Logic
   serverResetToken: string | null;
+  activeChallengeId: string | null;
+  challengeTarget: number | null;
   // Actions
   setStatus: (status: 'menu' | 'playing' | 'paused' | 'game_over') => void;
   setScore: (score: number) => void;
@@ -33,6 +35,8 @@ export interface GameSlice {
   setShareRequested: (requested: boolean) => void;
   checkServerReset: () => Promise<void>;
   restoreGameState: () => void;
+  setActiveChallengeId: (id: string | null) => void;
+  setChallengeTarget: (target: number | null) => void;
 }
 export interface SettingsSlice {
   isAudioEnabled: boolean;
@@ -59,17 +63,17 @@ export interface SettingsSlice {
 export interface SocialSlice {
   friends: Friend[];
   friendRequests: FriendRequest[];
+  challenges: Challenge[];
   isLoadingFriends: boolean;
   showFriendsModal: boolean;
-  challenges: Challenge[];
-  showChallengeModal: boolean;
-  activeChallengeId: string | null;
-  challengeTarget: number | null;
   leaderboardData: LeaderboardEntry[];
-  userRank: { rank: number; score: number; userId: string; mapId: string; category: LeaderboardCategory } | null;
+  friendsLeaderboard: LeaderboardEntry[];
+  isLoadingFriendsLeaderboard: boolean;
+  friendsLeaderboardError: string | null;
+  userRank: { rank: number; score: number; userId: string; mapId: string; category: LeaderboardCategory | 'friends' } | null;
   isLoadingLeaderboard: boolean;
   leaderboardError: string | null;
-  activeLeaderboardTab: LeaderboardCategory;
+  activeLeaderboardTab: LeaderboardCategory | 'friends';
   pbGhost: string | null;
   activeOpponentGhost: string | null;
   opponentName: string | null;
@@ -84,23 +88,26 @@ export interface SocialSlice {
   clearOpponent: () => void;
   setShowFriendsModal: (open: boolean) => void;
   checkNotifications: () => Promise<void>;
-  fetchChallenges: () => Promise<void>;
-  sendChallenge: (friendId: string) => Promise<void>;
-  sendChallenges: (friendIds: string[]) => Promise<void>;
-  acceptChallenge: (challenge: Challenge) => void;
-  completeChallenge: (score: number) => Promise<void>;
-  setShowChallengeModal: (open: boolean) => void;
   fetchLeaderboard: (mapId: string, type: 'global' | 'daily') => Promise<void>;
-  setLeaderboardTab: (tab: LeaderboardCategory) => void;
+  fetchFriendsLeaderboard: (mapId: string) => Promise<void>;
+  setLeaderboardTab: (tab: LeaderboardCategory | 'friends') => void;
   setPbGhost: (ghost: string) => void;
   checkBackendStatus: () => Promise<void>;
   claimReward: () => Promise<void>;
+  fetchChallenges: () => Promise<void>;
+  acceptChallenge: (challenge: Challenge) => void;
 }
 export interface ProfileSlice {
   profile: PlayerProfile | null;
   newUnlocks: string[];
   viewingProfile: PlayerProfile | null;
   isViewingProfileOpen: boolean;
+  dailyMap: GameMap | null;
+  dailyAttempts: number;
+  dailyLeaderboard: LeaderboardEntry[];
+  isLoadingDailyLeaderboard: boolean;
+  dailyLeaderboardError: string | null;
+  userDailyRank: number | null;
   // Actions
   createProfile: (displayName: string, id?: string) => void;
   updateProfile: (updates: Partial<PlayerProfile>) => void;
@@ -119,6 +126,7 @@ export interface ProfileSlice {
   startDailyChallenge: () => void;
   claimAchievement: (achievementId: string) => void;
   claimAllAchievements: () => void;
+  fetchDailyLeaderboard: () => Promise<void>;
 }
 // --- Combined State ---
 export type GameState = GameSlice & SettingsSlice & SocialSlice & ProfileSlice;

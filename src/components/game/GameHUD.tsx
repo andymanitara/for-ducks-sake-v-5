@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
-import { Pause, Volume2, VolumeX, Hand } from 'lucide-react';
+import { Pause, Volume2, VolumeX, Hand, CheckCircle2, Target } from 'lucide-react';
 import { soundSynth } from '@/game/SoundSynth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { CHALLENGE_TIERS } from '@/game/constants';
+import { haptics } from '@/game/Haptics';
 // Extracted Timer Component to isolate re-renders
 function GameTimer() {
     const score = useGameStore(state => state.score);
@@ -43,20 +45,67 @@ function GameTimer() {
 // Extracted Challenge Target Component
 function ChallengeTarget() {
     const score = useGameStore(state => state.score);
-    const challengeTarget = useGameStore(state => state.challengeTarget);
     const gameMode = useGameStore(state => state.gameMode);
-    if (gameMode !== 'challenge' || challengeTarget === null) return null;
+    const [highestTierReached, setHighestTierReached] = useState<number>(-1);
+    // Reset on new run
+    useEffect(() => {
+        if (score === 0) setHighestTierReached(-1);
+    }, [score]);
+    // Check tiers
+    useEffect(() => {
+        if (gameMode !== 'challenge') return;
+        let currentTierIndex = -1;
+        for (let i = 0; i < CHALLENGE_TIERS.length; i++) {
+            if (score >= CHALLENGE_TIERS[i].time) {
+                currentTierIndex = i;
+            }
+        }
+        if (currentTierIndex > highestTierReached) {
+            setHighestTierReached(currentTierIndex);
+            soundSynth.playUnlock();
+            haptics.success();
+        }
+    }, [score, gameMode, highestTierReached]);
+    if (gameMode !== 'challenge') return null;
+    // Find the next unachieved tier
+    const nextTierIndex = CHALLENGE_TIERS.findIndex(t => score < t.time);
+    const nextTier = nextTierIndex !== -1 ? CHALLENGE_TIERS[nextTierIndex] : null;
+    // Determine display properties based on the next tier
+    let label = "MAX TIER!";
+    let colorClass = "text-green-400";
+    let borderClass = "border-green-400";
+    let bgClass = "bg-green-900/80";
+    let icon = <CheckCircle2 className="w-4 h-4 text-green-400 animate-bounce" />;
+    if (nextTier) {
+        const tierName = nextTier.id === 'tier1' ? 'BRONZE' : nextTier.id === 'tier2' ? 'SILVER' : 'GOLD';
+        label = `NEXT: ${tierName} ${(nextTier.time / 1000).toFixed(0)}s`;
+        icon = <Target className="w-4 h-4 animate-pulse" />;
+        if (nextTier.id === 'tier1') {
+            colorClass = "text-orange-400";
+            borderClass = "border-orange-400";
+            bgClass = "bg-black/60";
+        } else if (nextTier.id === 'tier2') {
+            colorClass = "text-slate-300";
+            borderClass = "border-slate-300";
+            bgClass = "bg-black/60";
+        } else {
+            colorClass = "text-yellow-400";
+            borderClass = "border-yellow-400";
+            bgClass = "bg-black/60";
+        }
+    }
     return (
         <div className="absolute top-20 left-0 right-0 flex justify-center pointer-events-none">
             <div className={cn(
-                "bg-black/60 backdrop-blur-md px-4 py-1 rounded-full border-2 transition-colors duration-300 shadow-lg",
-                score > challengeTarget ? "border-green-400 bg-green-900/60" : "border-purple-400"
+                "backdrop-blur-md px-4 py-1 rounded-full border-2 transition-all duration-300 shadow-lg flex items-center gap-2",
+                borderClass, bgClass
             )}>
+                <span className={cn(colorClass)}>{icon}</span>
                 <span className={cn(
                     "font-arcade text-sm tracking-widest drop-shadow-sm",
-                    score > challengeTarget ? "text-green-400" : "text-purple-300"
+                    colorClass
                 )}>
-                    TARGET: {(challengeTarget / 1000).toFixed(2)}s
+                    {label}
                 </span>
             </div>
         </div>

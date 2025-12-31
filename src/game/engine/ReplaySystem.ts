@@ -79,7 +79,8 @@ export class ReplaySystem {
     // Capture stream and store reference for cleanup
     this.activeStream = canvas.captureStream(30);
     try {
-        this.mediaRecorder = new MediaRecorder(this.activeStream, { mimeType, videoBitsPerSecond: 2500000 });
+        // Optimized bitrate: 1.5 Mbps (down from 2.5 Mbps) for smaller file sizes
+        this.mediaRecorder = new MediaRecorder(this.activeStream, { mimeType, videoBitsPerSecond: 1500000 });
     } catch (e) {
         this.isRecording = false;
         // Cleanup if initialization fails

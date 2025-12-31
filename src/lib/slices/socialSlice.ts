@@ -6,17 +6,17 @@ import { BiomeType } from '@/types/game';
 export const createSocialSlice: SocialSliceCreator = (set, get) => ({
   friends: [],
   friendRequests: [],
+  challenges: [],
   isLoadingFriends: false,
   showFriendsModal: false,
-  challenges: [],
-  showChallengeModal: false,
-  activeChallengeId: null,
-  challengeTarget: null,
+  friendsLeaderboard: [],
+  isLoadingFriendsLeaderboard: false,
+  friendsLeaderboardError: null,
   leaderboardData: [],
   userRank: null,
   isLoadingLeaderboard: false,
   leaderboardError: null,
-  activeLeaderboardTab: 'daily',
+  activeLeaderboardTab: 'global',
   pbGhost: null,
   activeOpponentGhost: null,
   opponentName: null,
@@ -174,121 +174,35 @@ export const createSocialSlice: SocialSliceCreator = (set, get) => ({
                   pendingReward: friendsRes.data.reward || null
               });
           }
-          const challengesRes = await api.getChallenges(profile.playerId, { skipErrorLog: true });
-          if (challengesRes.success) {
-              const newChallenges = challengesRes.data;
-              const currentChallenges = state.challenges;
-              const pendingIncoming = newChallenges.filter(c => c.toUserId === profile.playerId && c.status === 'pending');
-              const currentPendingIds = new Set(currentChallenges.filter(c => c.toUserId === profile.playerId && c.status === 'pending').map(c => c.id));
-              const addedChallenges = pendingIncoming.filter(c => !currentPendingIds.has(c.id));
-              if (addedChallenges.length > 0) {
-                  soundSynth.playNotification();
-                  const count = addedChallenges.length;
-                  toast.info(`You have ${count} new challenge${count > 1 ? 's' : ''}!`, {
-                      action: {
-                          label: 'View',
-                          onClick: () => {
-                              if (state.status === 'playing') state.togglePause();
-                              state.setShowChallengeModal(true);
-                          }
-                      },
-                      duration: 5000
-                  });
-              }
-              set({ challenges: newChallenges });
-          }
       } catch (e) {
           // Silently fail for background polling
       }
   },
-  fetchChallenges: async () => {
-      const profile = get().profile;
-      if (!profile) return;
-      try {
-          const res = await api.getChallenges(profile.playerId);
-          if (res.success) {
-              set({ challenges: res.data });
-          }
-      } catch (e) {
-          console.error("Failed to fetch challenges", e);
-      }
-  },
-  sendChallenge: async (friendId) => {
-      const profile = get().profile;
-      const lastSeed = get().lastSeed;
-      const score = get().score;
-      const biome = get().biome;
-      if (!profile || !lastSeed) return;
-      try {
-          const res = await api.createChallenge({
-              fromUserId: profile.playerId,
-              toUserId: friendId,
-              seed: lastSeed,
-              score: score,
-              mapId: biome
-          });
-          if (res.success) {
-              toast.success("Challenge sent!");
-              get().fetchChallenges();
-          } else {
-              toast.error("Failed to send challenge");
-          }
-      } catch (e) {
-          toast.error("Network error");
-      }
-  },
-  sendChallenges: async (friendIds) => {
-      const profile = get().profile;
-      const lastSeed = get().lastSeed;
-      const score = get().score;
-      const biome = get().biome;
-      if (!profile || !lastSeed || friendIds.length === 0) return;
-      try {
-          const promises = friendIds.map(friendId =>
-              api.createChallenge({
-                  fromUserId: profile.playerId,
-                  toUserId: friendId,
-                  seed: lastSeed,
-                  score: score,
-                  mapId: biome
-              })
-          );
-          await Promise.all(promises);
-          toast.success(`Sent ${friendIds.length} challenges!`);
-          get().fetchChallenges();
-      } catch (e) {
-          console.error("Failed to send batch challenges", e);
-          toast.error("Failed to send some challenges");
-      }
-  },
   acceptChallenge: (challenge) => {
       set({
-          pendingSeed: challenge.seed,
           gameMode: 'challenge',
-          activeChallengeId: challenge.id,
-          challengeTarget: challenge.challengerScore,
           status: 'playing',
           replayViewMode: 'default',
           biome: (challenge.mapId as BiomeType) || 'pond'
       });
       toast.success(`Challenge accepted! Beat ${challenge.challengerScore}ms!`);
   },
-  completeChallenge: async (score) => {
-      const activeChallengeId = get().activeChallengeId;
-      if (!activeChallengeId) return;
-      try {
-          await api.updateChallenge({
-              challengeId: activeChallengeId,
-              status: 'completed',
-              score: score
-          });
-          set({ activeChallengeId: null });
-          get().fetchChallenges();
-      } catch (e) {
-          console.error("Failed to complete challenge", e);
+  fetchFriendsLeaderboard: async (mapId) => {
+    set({ isLoadingFriendsLeaderboard: true, friendsLeaderboardError: null });
+    try {
+      const res = await api.getFriendsLeaderboard(mapId);
+      if (res.success) {
+        set({ friendsLeaderboard: res.data });
+      } else {
+        set({ friendsLeaderboardError: res.error || 'Failed to load friends leaderboard', friendsLeaderboard: [] });
       }
+    } catch (e: any) {
+      console.error("Failed to fetch friends leaderboard", e);
+      set({ friendsLeaderboardError: e.message || 'Network error', friendsLeaderboard: [] });
+    } finally {
+      set({ isLoadingFriendsLeaderboard: false });
+    }
   },
-  setShowChallengeModal: (open) => set({ showChallengeModal: open }),
   fetchLeaderboard: async (mapId, type) => {
     set({ isLoadingLeaderboard: true, leaderboardError: null });
     try {
@@ -360,6 +274,18 @@ export const createSocialSlice: SocialSliceCreator = (set, get) => ({
           }
       } catch (e) {
           toast.error("Network error claiming reward");
+      }
+  },
+  fetchChallenges: async () => {
+      const profile = get().profile;
+      if (!profile) return;
+      try {
+          const res = await api.getChallenges(profile.playerId);
+          if (res.success) {
+              set({ challenges: res.data });
+          }
+      } catch (e) {
+          console.error("Failed to fetch challenges", e);
       }
   }
 });

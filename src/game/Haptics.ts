@@ -18,7 +18,7 @@ class Haptics {
    * Light feedback for UI interactions (buttons, toggles)
    */
   public soft() {
-    this.vibrate(10); 
+    this.vibrate(10);
   }
   /**
    * Medium feedback for gameplay events (pickup, minor warning)
@@ -30,13 +30,19 @@ class Haptics {
    * Heavy feedback for collisions or game over
    */
   public impact() {
-    this.vibrate([50, 50, 50]); 
+    this.vibrate([50, 50, 50]);
   }
   /**
    * Distinct pattern for hazard warnings (e.g. laser lock-on)
    */
   public warning() {
-    this.vibrate([20, 30, 20]); 
+    this.vibrate([20, 30, 20]);
+  }
+  /**
+   * Success pattern for completing challenges or unlocking items
+   */
+  public success() {
+    this.vibrate([30, 50, 30]);
   }
 }
 export const haptics = new Haptics();

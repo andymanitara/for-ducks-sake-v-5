@@ -64,6 +64,12 @@ export class SoundSynth {
         // Ignore audio errors
     }
   }
+  public playStart() {
+      // Rising major triad arpeggio
+      this.playTone(523.25, 'triangle', 0.1, 0, 0.2); // C5
+      this.playTone(659.25, 'triangle', 0.1, 0.1, 0.2); // E5
+      this.playTone(783.99, 'triangle', 0.3, 0.2, 0.2); // G5
+  }
   public playQuack() {
     const ctx = this.getContext();
     if (!ctx) return;
@@ -525,6 +531,32 @@ export class SoundSynth {
         };
         osc.start(t);
         osc.stop(t + 0.5);
+    } catch (e) {
+        // ignore
+    }
+  }
+  public playLock() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const masterVol = this.getMasterVolume();
+    if (masterVol <= 0.0001) return;
+    try {
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, t);
+        osc.frequency.exponentialRampToValueAtTime(600, t + 0.1);
+        gain.gain.setValueAtTime(0.1 * masterVol, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.onended = () => {
+            osc.disconnect();
+            gain.disconnect();
+        };
+        osc.start(t);
+        osc.stop(t + 0.1);
     } catch (e) {
         // ignore
     }

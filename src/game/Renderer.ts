@@ -53,8 +53,8 @@ export class Renderer {
   public drawPanicVignette(panicLevel: number) {
     this.effectRenderer.drawPanicVignette(panicLevel);
   }
-  public drawGhost(frame: ReplayFrame, label?: string, color?: string) {
-    this.entityRenderer.drawGhost(frame, label, color);
+  public drawGhost(frame: ReplayFrame, label?: string, color?: string, opacity?: number) {
+    this.entityRenderer.drawGhost(frame, label, color, opacity);
   }
   public drawJoystick(input: InputState) {
     this.uiRenderer.drawJoystick(input);

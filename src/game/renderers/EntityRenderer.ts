@@ -2,17 +2,27 @@ import { Duck, Hazard, ReplayFrame, TrailPoint } from '@/types/game';
 import { GAME_CONSTANTS, SKINS } from '@/game/constants';
 import { adjustColor } from '@/lib/utils';
 import { useGameStore } from '@/lib/store';
+interface GhostOptions {
+    isGhost: boolean;
+    color: string;
+    label?: string;
+    opacity?: number;
+}
 export class EntityRenderer {
   private ctx: CanvasRenderingContext2D;
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
   }
-  public drawDuck(duck: Duck) {
+  public drawDuck(duck: Duck, ghostOptions?: GhostOptions) {
     const { x, y } = duck.position;
     const r = duck.radius;
     const skin = SKINS.find(s => s.id === duck.skinId) || SKINS[0];
+    const isGhost = ghostOptions?.isGhost || false;
     // Draw trail BEFORE body to ensure it appears underneath
-    this.drawTrail(duck.trail, skin.color, skin.trailType);
+    // Ghosts do not draw trails to reduce visual clutter
+    if (!isGhost) {
+        this.drawTrail(duck.trail, skin.color, skin.trailType);
+    }
     // If duck is dead, do not draw the body, only the trail remains visible
     if (duck.state === 'dead') return;
     this.ctx.save();
@@ -25,33 +35,42 @@ export class EntityRenderer {
     // Tilt
     const tilt = duck.velocity.x * 0.001;
     this.ctx.rotate(tilt);
-    // Shadow
-    this.ctx.beginPath();
-    this.ctx.ellipse(0, r + 5, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
-    this.ctx.fillStyle = GAME_CONSTANTS.VISUALS.SHADOW_COLOR;
-    this.ctx.fill();
+    // Ghost Effects
+    if (isGhost && ghostOptions) {
+        this.ctx.globalAlpha = ghostOptions.opacity !== undefined ? ghostOptions.opacity : 0.6; // Semi-transparent
+        this.ctx.shadowColor = ghostOptions.color;
+        this.ctx.shadowBlur = 15; // Glow effect
+    } else {
+        // Shadow (Real duck only)
+        this.ctx.beginPath();
+        this.ctx.ellipse(0, r + 5, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
+        this.ctx.fillStyle = GAME_CONSTANTS.VISUALS.SHADOW_COLOR;
+        this.ctx.fill();
+    }
     // Body
     this.ctx.beginPath();
     this.ctx.arc(0, 0, r, 0, Math.PI * 2);
     this.ctx.fillStyle = skin.color;
     this.ctx.fill();
     this.ctx.lineWidth = GAME_CONSTANTS.VISUALS.OUTLINE_WIDTH;
-    this.ctx.strokeStyle = GAME_CONSTANTS.COLORS.DUCK_OUTLINE;
+    this.ctx.strokeStyle = isGhost && ghostOptions ? ghostOptions.color : GAME_CONSTANTS.COLORS.DUCK_OUTLINE;
     this.ctx.stroke();
-    // Highlight
-    this.ctx.beginPath();
-    this.ctx.ellipse(-r/3, -r/3, r/3, r/5, -Math.PI/4, 0, Math.PI * 2);
-    this.ctx.fillStyle = GAME_CONSTANTS.VISUALS.HIGHLIGHT_COLOR;
-    this.ctx.fill();
+    // Highlight (Skip for ghost to enhance flat holographic look)
+    if (!isGhost) {
+        this.ctx.beginPath();
+        this.ctx.ellipse(-r/3, -r/3, r/3, r/5, -Math.PI/4, 0, Math.PI * 2);
+        this.ctx.fillStyle = GAME_CONSTANTS.VISUALS.HIGHLIGHT_COLOR;
+        this.ctx.fill();
+    }
     // Skin Specifics
     this.drawSkinDetails(duck.skinId, r);
     // Face
     if (skin.accessory !== 'visor') {
         this.drawEyes(duck, r);
     }
-    // Reset stroke style for beak to prevent bleeding from skin details (e.g. La Fleur red trim)
-    this.ctx.strokeStyle = GAME_CONSTANTS.COLORS.DUCK_OUTLINE;
-    // Standardize beak outline width for ALL skins, including La Fleur
+    // Beak
+    // Reset stroke style for beak to prevent bleeding from skin details
+    this.ctx.strokeStyle = isGhost && ghostOptions ? ghostOptions.color : GAME_CONSTANTS.COLORS.DUCK_OUTLINE;
     this.ctx.lineWidth = GAME_CONSTANTS.VISUALS.OUTLINE_WIDTH;
     this.ctx.fillStyle = GAME_CONSTANTS.COLORS.DUCK_BEAK;
     this.ctx.beginPath();
@@ -63,6 +82,18 @@ export class EntityRenderer {
     // Glitch Overlay (Top Layer)
     if (duck.skinId === 'glitch_duck') {
         this.drawGlitchOverlay(r);
+    }
+    // Ghost Label
+    if (isGhost && ghostOptions?.label) {
+        this.ctx.save();
+        this.ctx.rotate(-tilt); // Keep text straight
+        this.ctx.fillStyle = ghostOptions.color;
+        this.ctx.font = '900 12px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.shadowColor = 'black';
+        this.ctx.shadowBlur = 4;
+        this.ctx.fillText(ghostOptions.label, 0, -r - 15);
+        this.ctx.restore();
     }
     this.ctx.restore();
   }
@@ -122,31 +153,26 @@ export class EntityRenderer {
     }
     this.ctx.restore();
   }
-  public drawGhost(frame: ReplayFrame, label: string = 'PB', color: string = '#A0D8EF') {
-    const { x, y, scale } = frame;
-    const isBatterySaver = useGameStore.getState().isBatterySaver;
-    const r = GAME_CONSTANTS.DUCK_RADIUS;
-    this.ctx.save();
-    this.ctx.translate(x, y);
-    this.ctx.scale(scale.x, scale.y);
-    if (label === 'RIVAL') {
-        this.ctx.shadowColor = '#FF0000';
-        if (!isBatterySaver) this.ctx.shadowBlur = 15;
-    }
-    const pulse = 0.4 + Math.sin(Date.now() / 200) * 0.1;
-    this.ctx.globalAlpha = pulse;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, r, 0, Math.PI * 2);
-    this.ctx.fillStyle = color;
-    this.ctx.fill();
-    this.ctx.strokeStyle = '#FFFFFF';
-    this.ctx.lineWidth = 2;
-    this.ctx.stroke();
-    this.ctx.fillStyle = 'white';
-    this.ctx.font = 'bold 12px sans-serif';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(label, 0, -r - 5);
-    this.ctx.restore();
+  public drawGhost(frame: ReplayFrame, label: string = 'PB', color: string = '#A0D8EF', opacity: number = 0.6) {
+    // Construct mock duck from frame data
+    const mockDuck: Duck = {
+        id: 'ghost',
+        type: 'duck',
+        position: { x: frame.x, y: frame.y },
+        velocity: { x: frame.vx || 0, y: frame.vy || 0 },
+        radius: GAME_CONSTANTS.DUCK_RADIUS,
+        color: GAME_CONSTANTS.COLORS.DUCK, // Placeholder, overridden by skin
+        state: frame.state || 'moving',
+        rotation: frame.rotation,
+        wobble: 0, // Ghosts glide smoothly
+        skinId: frame.skinId,
+        trail: [],
+        blinkTimer: 0,
+        scale: frame.scale,
+        panicLevel: 0,
+        faceDirection: frame.faceDirection
+    };
+    this.drawDuck(mockDuck, { isGhost: true, color, label, opacity });
   }
   // --- Helper Methods ---
   private drawSkinDetails(skinId: string, r: number) {
@@ -274,21 +300,15 @@ export class EntityRenderer {
       // Dynamic Panic Scaling
       const panic = Math.max(0, Math.min(1, duck.panicLevel));
       // Eye Radius: Grows with panic
-      // Calm: r/3.5 (~0.28r)
-      // Panic: r/2.2 (~0.45r)
       const minEyeR = r / 3.5;
       const maxEyeR = r / 2.2;
       const eyeRadius = minEyeR + (maxEyeR - minEyeR) * panic;
       // Pupil Radius: Grows with panic (Dilated)
-      // Calm: r / 9
-      // Panic: r / 5.5
       const minPupilR = r / 9;
       const maxPupilR = r / 5.5;
       const pupilRadius = minPupilR + (maxPupilR - minPupilR) * panic;
       // Blinking: Suppressed at high panic
       const isBlinking = panic < 0.5 && duck.blinkTimer > GAME_CONSTANTS.ANIMATION.BLINK_INTERVAL;
-      // Offset: Eyes might need to move apart slightly if they get huge?
-      // Let's keep fixed offset for now: r/3.
       const eyeOffsetX = r / 3;
       const eyeOffsetY = -r / 4;
       this.drawSingleEye(-eyeOffsetX, eyeOffsetY, eyeRadius, pupilRadius, isBlinking, duck.faceDirection, panic > 0.5);
@@ -850,14 +870,26 @@ export class EntityRenderer {
           this.ctx.beginPath();
           this.ctx.arc(0, 0, r/2, 0, Math.PI * 2);
           this.ctx.fill();
-          this.ctx.save();
+          this.ctx.save(); // Save for rotation AND alpha
           this.ctx.rotate(Math.atan2(hazard.velocity.y, hazard.velocity.x) - hazard.rotation);
-          this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+          // Visual feedback for Locked state
+          if (hazard.aiState === 'leave') {
+              // Locked: Solid red beam/eye
+              this.ctx.fillStyle = '#FF0000';
+              // Add a pulsing effect
+              const pulse = 0.6 + Math.sin(Date.now() / 50) * 0.2;
+              this.ctx.globalAlpha = pulse;
+          } else {
+              // Tracking: Subtle red cone
+              this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+          }
           this.ctx.beginPath();
           this.ctx.moveTo(0, 0);
           this.ctx.arc(0, 0, r * 3, -0.3, 0.3);
           this.ctx.fill();
-          this.ctx.restore();
+          this.ctx.restore(); // Restore rotation AND alpha
+          // Reset alpha if it was modified
+          this.ctx.globalAlpha = hazard.spawnTimer; // Restore original alpha logic
           this.ctx.strokeStyle = '#555';
           this.ctx.beginPath();
           this.ctx.moveTo(-r, -r);

@@ -16,36 +16,34 @@ import { MapSelector } from './MapSelector';
 import { AchievementsModal } from './AchievementsModal';
 import { SettingsModal } from './SettingsModal';
 import { FriendsModal } from './FriendsModal';
-import { ChallengeSelectModal } from './ChallengeSelectModal';
+import { ChallengesModal } from './ChallengesModal';
 import { MenuBackground } from './MenuBackground';
 import { NotificationManager } from './NotificationManager';
 import { ShopModal } from './ShopModal';
-import { DailyChallengeModal } from './DailyChallengeModal';
 import { OtherUserProfileModal } from './OtherUserProfileModal';
 import { OfflineIndicator } from './OfflineIndicator';
 import { ResumeCountdown } from './ResumeCountdown';
 import { soundSynth } from '@/game/SoundSynth';
 import { GAME_TIPS } from '@/game/constants';
+import { setGlobalResetToken } from '@/lib/api';
 export function UIOverlay() {
   const status = useGameStore(state => state.status);
   const profile = useGameStore(state => state.profile);
   const newUnlocks = useGameStore(state => state.newUnlocks);
   const replayViewMode = useGameStore(state => state.replayViewMode);
-  const pendingSeed = useGameStore(state => state.pendingSeed);
-  const showChallengeModal = useGameStore(state => state.showChallengeModal);
   const showFriendsModal = useGameStore(state => state.showFriendsModal);
   const isViewingProfileOpen = useGameStore(state => state.isViewingProfileOpen);
   const closeUserProfile = useGameStore(state => state.closeUserProfile);
   const setStatus = useGameStore(state => state.setStatus);
   const togglePause = useGameStore(state => state.togglePause);
-  const setGameMode = useGameStore(state => state.setGameMode);
   const clearNewUnlocks = useGameStore(state => state.clearNewUnlocks);
   const setReplayViewMode = useGameStore(state => state.setReplayViewMode);
   const checkBackendStatus = useGameStore(state => state.checkBackendStatus);
-  const setShowChallengeModal = useGameStore(state => state.setShowChallengeModal);
   const setShowFriendsModal = useGameStore(state => state.setShowFriendsModal);
   const resetGame = useGameStore(state => state.resetGame);
   const currentBiome = useGameStore(state => state.biome);
+  const serverResetToken = useGameStore(state => state.serverResetToken);
+  const resetReplayState = useGameStore(state => state.resetReplayState);
   const [showSkins, setShowSkins] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -54,10 +52,16 @@ export function UIOverlay() {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showShop, setShowShop] = useState(false);
-  const [showDailyChallenge, setShowDailyChallenge] = useState(false);
+  const [showChallenges, setShowChallenges] = useState(false);
   const [highlightedHazard, setHighlightedHazard] = useState<string | null>(null);
   const [randomTip, setRandomTip] = useState('');
   const [isResuming, setIsResuming] = useState(false);
+  // Context for Challenges Modal to open correct tab/map
+  const [challengeContext, setChallengeContext] = useState<{ tab: 'daily' | 'maps', mapId?: string } | null>(null);
+  // Sync Reset Token to API
+  useEffect(() => {
+      setGlobalResetToken(serverResetToken);
+  }, [serverResetToken]);
   // Check backend status on mount
   useEffect(() => {
       checkBackendStatus();
@@ -72,16 +76,6 @@ export function UIOverlay() {
   if (!profile) {
     return <WelcomeScreen />;
   }
-  const handleStart = (mode: 'normal' | 'daily') => {
-      soundSynth.playClick();
-      if (mode === 'normal' && pendingSeed) {
-          setGameMode('challenge');
-      } else {
-          setGameMode(mode);
-      }
-      setStatus('playing');
-      setReplayViewMode('default');
-  };
   const handleOpenStrategy = (hazardType: string) => {
       setHighlightedHazard(hazardType);
       setShowInfo(true);
@@ -102,6 +96,21 @@ export function UIOverlay() {
       setShowSkins(false);
       setShowShop(true);
   };
+  const handleOpenChallenges = () => {
+      soundSynth.playClick();
+      // Capture context based on current game state before resetting
+      const store = useGameStore.getState();
+      if (store.gameMode === 'challenge') {
+          setChallengeContext({ tab: 'maps', mapId: store.biome });
+      } else if (store.gameMode === 'daily') {
+          setChallengeContext({ tab: 'daily' });
+      } else {
+          setChallengeContext(null);
+      }
+      resetReplayState();
+      setStatus('menu');
+      setShowChallenges(true);
+  };
   const getActiveView = () => {
     if (newUnlocks.length > 0) {
         return <UnlockModal key="unlock-modal" skinIds={newUnlocks} onClose={clearNewUnlocks} />;
@@ -115,8 +124,12 @@ export function UIOverlay() {
     if (showShop) {
         return <ShopModal key="shop" onClose={() => setShowShop(false)} />;
     }
-    if (showDailyChallenge) {
-        return <DailyChallengeModal key="daily" onClose={() => setShowDailyChallenge(false)} />;
+    if (showChallenges) {
+        return <ChallengesModal 
+            key="challenge-select" 
+            onClose={() => { setShowChallenges(false); setChallengeContext(null); }} 
+            initialContext={challengeContext}
+        />;
     }
     if (showLeaderboard) {
         return <Leaderboard key="leaderboard" onClose={() => setShowLeaderboard(false)} />;
@@ -135,9 +148,6 @@ export function UIOverlay() {
     }
     if (showFriendsModal) {
         return <FriendsModal key="friends" onClose={() => setShowFriendsModal(false)} />;
-    }
-    if (showChallengeModal) {
-        return <ChallengeSelectModal key="challenge-select" onClose={() => setShowChallengeModal(false)} />;
     }
     if (showInfo) {
         return <InfoModal key="info" onClose={handleCloseInfo} highlightedHazard={highlightedHazard} />;
@@ -220,7 +230,7 @@ export function UIOverlay() {
                     exit={{ opacity: 0, y: 20 }}
                     style={{ opacity: 0 }} // Explicit initialization
                     onClick={() => setReplayViewMode('default')}
-                    className="absolute inset-0 z-50 pointer-events-auto flex items-end justify-center pb-32 cursor-pointer"
+                    className="absolute inset-0 z-50 pointer-events-auto flex items-end justify-center cursor-pointer"
                 >
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -239,6 +249,7 @@ export function UIOverlay() {
                 key="game-over"
                 onWatchReplay={() => setReplayViewMode('fullscreen')}
                 onOpenStrategy={handleOpenStrategy}
+                onOpenChallenges={handleOpenChallenges}
             />
         );
     }
@@ -253,7 +264,7 @@ export function UIOverlay() {
                 className="absolute inset-0 z-30 pointer-events-auto"
             >
                 <MainMenu
-                    onStart={() => handleStart('normal')}
+                    onStart={() => { soundSynth.playClick(); setShowMaps(true); }}
                     onSkins={() => { soundSynth.playClick(); setShowSkins(true); }}
                     onLeaderboard={() => { soundSynth.playClick(); setShowLeaderboard(true); }}
                     onBiome={() => { soundSynth.playClick(); setShowMaps(true); }}
@@ -263,7 +274,8 @@ export function UIOverlay() {
                     onSettings={() => { soundSynth.playClick(); setShowSettings(true); }}
                     onFriends={() => { soundSynth.playClick(); setShowFriendsModal(true); }}
                     onShop={() => { soundSynth.playClick(); setShowShop(true); }}
-                    onDaily={() => { soundSynth.playClick(); setShowDailyChallenge(true); }}
+                    onChallenges={() => { soundSynth.playClick(); setShowChallenges(true); }}
+                    onDaily={() => { soundSynth.playClick(); setShowChallenges(true); }}
                     profile={profile}
                 />
             </motion.div>

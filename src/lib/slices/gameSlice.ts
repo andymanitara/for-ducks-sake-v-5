@@ -6,6 +6,8 @@ export const createGameSlice: GameSliceCreator = (set, get) => ({
   biome: 'pond',
   previousBiome: null,
   gameMode: 'normal',
+  activeChallengeId: null,
+  challengeTarget: null,
   lastRunStats: null,
   lastSeed: null,
   pendingSeed: null,
@@ -52,6 +54,8 @@ export const createGameSlice: GameSliceCreator = (set, get) => ({
     shareRequested: false
   }),
   setGameMode: (mode) => set({ gameMode: mode }),
+  setActiveChallengeId: (id) => set({ activeChallengeId: id }),
+  setChallengeTarget: (target) => set({ challengeTarget: target }),
   setLastSeed: (seed) => set({ lastSeed: seed }),
   setPendingSeed: (seed) => set({ pendingSeed: seed }),
   startReplayGeneration: () => set({ replayState: 'generating', replayVideo: null }),
@@ -89,7 +93,9 @@ export const createGameSlice: GameSliceCreator = (set, get) => ({
         return {
             gameMode: 'normal',
             biome: state.previousBiome,
-            previousBiome: null
+            previousBiome: null,
+            activeChallengeId: null,
+            challengeTarget: null
         };
     }
     return {};

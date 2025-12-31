@@ -30,6 +30,12 @@ export function AchievementsModal({ onClose }: AchievementsModalProps) {
   const totalClaimableCoins = useMemo(() => {
       return claimableAchievements.reduce((sum, ach) => sum + (ach.rewardCoins || 0), 0);
   }, [claimableAchievements]);
+  const generalClaimableCount = useMemo(() =>
+    claimableAchievements.filter(ach => !ach.mapId).length,
+  [claimableAchievements]);
+  const mapsClaimableCount = useMemo(() =>
+    claimableAchievements.filter(ach => !!ach.mapId).length,
+  [claimableAchievements]);
   // Group achievements
   const groupedAchievements = useMemo(() => {
       const groups: Record<string, Achievement[]> = {
@@ -74,7 +80,7 @@ export function AchievementsModal({ onClose }: AchievementsModalProps) {
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Star className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-md stroke-[3px] shrink-0" />
             <h2 className="text-lg sm:text-2xl font-arcade text-white text-stroke-thick tracking-widest drop-shadow-md truncate">
-                ACHIEVEMENTS
+                AWARDS
             </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -94,24 +100,34 @@ export function AchievementsModal({ onClose }: AchievementsModalProps) {
               <button
                   onClick={() => handleTabChange('general')}
                   className={cn(
-                      "font-black py-2 rounded-lg border-2 transition-all flex items-center justify-center gap-2",
+                      "font-black py-2 rounded-lg border-2 transition-all flex items-center justify-center gap-2 relative",
                       activeTab === 'general'
                           ? "bg-blue-500 text-white border-black"
                           : "bg-transparent text-gray-500 border-transparent hover:bg-gray-100"
                   )}
               >
                   <Trophy className="w-4 h-4" /> GENERAL
+                  {generalClaimableCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-bounce">
+                          {generalClaimableCount}
+                      </span>
+                  )}
               </button>
               <button
                   onClick={() => handleTabChange('maps')}
                   className={cn(
-                      "font-black py-2 rounded-lg border-2 transition-all flex items-center justify-center gap-2",
+                      "font-black py-2 rounded-lg border-2 transition-all flex items-center justify-center gap-2 relative",
                       activeTab === 'maps'
                           ? "bg-purple-500 text-white border-black"
                           : "bg-transparent text-gray-500 border-transparent hover:bg-gray-100"
                   )}
               >
                   <MapIcon className="w-4 h-4" /> MAPS
+                  {mapsClaimableCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-bounce">
+                          {mapsClaimableCount}
+                      </span>
+                  )}
               </button>
           </div>
       </div>
@@ -214,7 +230,7 @@ export function AchievementsModal({ onClose }: AchievementsModalProps) {
                                               hasReward && !claimed ? (
                                                   <Button
                                                       onClick={() => handleClaim(ach)}
-                                                      className="h-10 bg-green-500 hover:bg-green-600 text-white font-black border-2 border-black shadow-sm active:translate-y-[1px] active:shadow-none flex items-center gap-2 w-full sm:w-auto"
+                                                      className="h-10 bg-green-500 hover:bg-green-600 text-white font-black border-2 border-black shadow-sm active:translate-y-[1px] active:shadow-none flex items-center gap-2 w-full sm:w-auto animate-pulse"
                                                   >
                                                       <Coins className="w-4 h-4 fill-current" />
                                                       CLAIM {ach.rewardCoins}
@@ -248,7 +264,7 @@ export function AchievementsModal({ onClose }: AchievementsModalProps) {
         <div className="p-4 bg-white border-t-4 border-black shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-20">
             <Button
                 onClick={() => { soundSynth.playClick(); claimAllAchievements(); }}
-                className="w-full h-14 text-xl font-arcade bg-green-500 hover:bg-green-400 text-white border-4 border-black rounded-xl shadow-hard active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-3"
+                className="w-full h-14 text-xl font-arcade bg-green-500 hover:bg-green-400 text-white border-4 border-black rounded-xl shadow-hard active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-3 animate-pulse"
             >
                 <CheckCheck className="w-6 h-6 stroke-[3px]" />
                 CLAIM ALL

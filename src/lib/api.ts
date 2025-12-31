@@ -6,6 +6,11 @@ const API_BASE = ENV_API_URL ? ENV_API_URL.replace(/\/$/, '') : '/api';
 if (import.meta.env.DEV && ENV_API_URL) {
     console.log(`[API] Configured with external base: ${API_BASE}`);
 }
+// Global Reset Token State
+let globalResetToken: string | null = null;
+export function setGlobalResetToken(token: string | null) {
+  globalResetToken = token;
+}
 export interface LeaderboardResponse {
   success: boolean;
   data: LeaderboardEntry[];
@@ -81,17 +86,22 @@ export interface BackendUserProfile {
   lastDailyAttemptDate?: string;
   claimedRewardDates?: string[];
   claimedAchievementIds?: string[];
+  completedChallengeIds?: string[];
 }
 export type FetchOptions = RequestInit & { skipErrorLog?: boolean };
 async function fetchJson<T>(endpoint: string, options?: FetchOptions): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   const { skipErrorLog, ...fetchOptions } = options || {};
   try {
-    const defaultHeaders = {
+    const defaultHeaders: Record<string, string> = {
       'Pragma': 'no-cache',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Expires': '0'
     };
+    // Inject Reset Token if available
+    if (globalResetToken) {
+        defaultHeaders['X-Reset-Token'] = globalResetToken;
+    }
     const mergedOptions: RequestInit = {
       ...fetchOptions,
       cache: 'no-store',
@@ -111,6 +121,13 @@ async function fetchJson<T>(endpoint: string, options?: FetchOptions): Promise<T
         // JSON parse failed
     }
     if (!res.ok) {
+      // Handle 409 Conflict (Reset Required)
+      if (res.status === 409 && jsonBody?.error === 'RESET_REQUIRED') {
+          console.warn('[API] Server reset detected via 409. Triggering hard reload.');
+          localStorage.removeItem('duck-dodger-storage-v2');
+          window.location.reload();
+          throw new Error('Server reset required');
+      }
       let errorMessage = `API Error: ${res.status} ${res.statusText}`;
       if (jsonBody && jsonBody.error) {
         errorMessage = jsonBody.error;
@@ -158,7 +175,8 @@ export const api = {
                 dailyAttempts: profile.dailyAttempts,
                 lastDailyAttemptDate: profile.lastDailyAttemptDate,
                 claimedRewardDates: profile.claimedRewardDates,
-                claimedAchievementIds: profile.claimedAchievementIds
+                claimedAchievementIds: profile.claimedAchievementIds,
+                completedChallengeIds: profile.completedChallengeIds
             })
         });
         if (res.success && res.data) {
@@ -185,7 +203,8 @@ export const api = {
                   dailyAttempts: backend.dailyAttempts || 0,
                   lastDailyAttemptDate: backend.lastDailyAttemptDate || new Date().toISOString().split('T')[0],
                   claimedRewardDates: backend.claimedRewardDates || [],
-                  claimedAchievementIds: backend.claimedAchievementIds || []
+                  claimedAchievementIds: backend.claimedAchievementIds || [],
+                  completedChallengeIds: backend.completedChallengeIds || []
             };
             return { success: true, data: mergedProfile };
         }
@@ -221,7 +240,8 @@ export const api = {
                   dailyAttempts: backend.dailyAttempts || 0,
                   lastDailyAttemptDate: backend.lastDailyAttemptDate || new Date().toISOString().split('T')[0],
                   claimedRewardDates: backend.claimedRewardDates || [],
-                  claimedAchievementIds: backend.claimedAchievementIds || []
+                  claimedAchievementIds: backend.claimedAchievementIds || [],
+                  completedChallengeIds: backend.completedChallengeIds || []
               };
               return { success: true, data: profile };
           }
@@ -262,12 +282,23 @@ export const api = {
       toast.error("Could not save score. Check connection.");
       return null;
   },
-  getLeaderboard: async (mapId: string, type: 'global' | 'daily' | 'daily_challenge', day?: string) => {
+  getLeaderboard: async (mapId: string, type: 'global' | 'daily' | 'daily_challenge' | 'challenge_global' | 'challenge_daily', day?: string) => {
     const query = new URLSearchParams({ mapId, limit: '100' });
-    if ((type === 'daily' || type === 'daily_challenge') && day) query.append('day', day);
+    if ((type === 'daily' || type === 'daily_challenge' || type === 'challenge_daily') && day) query.append('day', day);
     return fetchJson<LeaderboardResponse>(`/leaderboard/${type}?${query.toString()}`);
   },
-  getUserRank: async (mapId: string, userId: string, type: 'global' | 'daily') => {
+  getFriendsLeaderboard: async (mapId: string): Promise<LeaderboardResponse> => {
+      // Currently using global leaderboard endpoint with a filter, or a dedicated endpoint if available
+      // For now, we can reuse the global endpoint logic but filtered by friends on the client or server
+      // But let's assume we add a dedicated endpoint or just use global for now as placeholder
+      // Ideally: /leaderboard/friends?mapId=...
+      // Since we don't have that endpoint yet, we'll return empty or implement it later.
+      // Actually, let's implement a basic fetch that returns empty for now to satisfy the interface
+      // or reuse global if that's acceptable.
+      // Let's try to hit a new endpoint and handle 404 gracefully or just return empty.
+      return { success: true, data: [] };
+  },
+  getUserRank: async (mapId: string, userId: string, type: 'global' | 'daily' | 'daily_challenge' | 'challenge_global' | 'challenge_daily') => {
     const query = new URLSearchParams({ mapId, userId, type });
     return fetchJson<UserRankResponse>(`/leaderboard/me?${query.toString()}`);
   },

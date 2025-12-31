@@ -5,6 +5,22 @@ export const UNLOCK_THRESHOLDS: Record<string, { type: 'score' | 'games' | 'tota
   'cool': { type: 'total_time', value: 300000, description: 'Survive 5 minutes total' },
   'quackers': { type: 'score', value: 100000, description: 'Survive 100 seconds in one run' },
 };
+// New Challenge System Constants
+export const CHALLENGE_TIERS = [
+  { id: 'tier1', time: 60000, rewardCoins: 100 },
+  { id: 'tier2', time: 120000, rewardCoins: 250 },
+  { id: 'tier3', time: 180000, rewardType: 'skin' } // Skin ID looked up from MAP_CHALLENGE_REWARDS
+];
+export const MAP_CHALLENGE_REWARDS: Record<string, string> = {
+  'pond': 'pinky',
+  'glacier': 'cool',
+  'bathtub': 'quackers',
+  'city': 'ninja',
+  'gym': 'lafleur',
+  'billiards': 'gentleman',
+  'glitch': 'glitch_duck',
+  'christmas': 'sir_quacks_alot',
+};
 // Helper to generate standard map achievements
 const createStandardMapAchievements = (mapId: BiomeType, mapName: string, tiers: ('bronze' | 'silver' | 'gold')[]): Achievement[] => {
   const achievements: Achievement[] = [];
@@ -72,21 +88,13 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'ach_lafleur', title: "The 5 D's", description: "Unlock the Gym Map", icon: 'Activity', rewardSkinId: 'lafleur', conditionType: 'score', conditionValue: 30000 },
   { id: 'ach_glitch', title: 'The Architect', description: 'Unlock the secret Glitch Duck', icon: 'Terminal', conditionType: 'has_skin', conditionValue: 1, targetId: 'glitch_duck' },
   // Map Specific Achievements
-  // Pond: Keep all
   ...createStandardMapAchievements('pond', 'Lily Pond', ['bronze', 'silver', 'gold']),
-  // Glacier: Keep all
   ...createStandardMapAchievements('glacier', 'Snowy Glacier', ['bronze', 'silver', 'gold']),
-  // Bathtub: Remove 100s (Gold)
   ...createStandardMapAchievements('bathtub', 'Bathtub', ['bronze', 'silver']),
-  // City: Remove 60s (Silver) and 100s (Gold)
   ...createStandardMapAchievements('city', 'City Park', ['bronze']),
-  // Gym: Remove 60s (Silver) and 100s (Gold)
   ...createStandardMapAchievements('gym', 'Gym', ['bronze']),
-  // Billiards: Remove 60s (Silver) and 100s (Gold)
   ...createStandardMapAchievements('billiards', 'Billiards', ['bronze']),
-  // Glitch: Remove 60s (Silver) and 100s (Gold)
   ...createStandardMapAchievements('glitch', 'Glitch', ['bronze']),
-  // Christmas: Keep all (Seasonal)
   ...createStandardMapAchievements('christmas', 'Wonderland', ['bronze', 'silver', 'gold']),
   // Advanced Map-Specific Challenges
   { id: 'ach_demolition_duck', title: 'Demolition Duck', description: 'Trigger 50 Drone Explosions in City Park', icon: 'Zap', conditionType: 'map_explosions', conditionValue: 50, mapId: 'city', rewardCoins: 300 },
@@ -94,32 +102,30 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'ach_dodgeball_pro', title: 'Dodgeball Pro', description: 'Dodge 10 wrenches in a single run', icon: 'Activity', conditionType: 'run_wrench_dodges', conditionValue: 10, mapId: 'gym', rewardCoins: 400 },
   { id: 'ach_corner_pocket', title: 'Corner Pocket', description: 'Watch 15 balls get pocketed in a single run', icon: 'CircleDot', conditionType: 'run_balls_pocketed', conditionValue: 15, mapId: 'billiards', rewardCoins: 400 },
 ];
-// Maps sorted by progression sequence
-// totalSurvivalTimeRequired is in milliseconds
 export const MAPS: GameMap[] = [
   { id: 'pond', name: 'Lily Pond', description: 'A peaceful pond with jumping frogs and floating logs.', difficulty: 'Easy', colorTheme: '#87CEEB', thumbnailColor: '#87CEEB', totalSurvivalTimeRequired: 0, progressMultiplier: 1.0 },
-  { id: 'glacier', name: 'Snowy Glacier', description: 'Slippery ice, falling icicles, and snowballs.', difficulty: 'Medium', colorTheme: '#E0F7FA', thumbnailColor: '#E0F7FA', totalSurvivalTimeRequired: 120000, progressMultiplier: 1.2, bestTimeRequired: 40000 }, // 2 mins total OR 40s in Pond
-  { id: 'bathtub', name: 'Bathtub Battle', description: 'Slippery tiles, soap bubbles, and shampoo bottles!', difficulty: 'Medium', colorTheme: '#E0F2F1', thumbnailColor: '#B2DFDB', totalSurvivalTimeRequired: 300000, progressMultiplier: 1.4, bestTimeRequired: 40000 }, // 5 mins total OR 40s in Glacier
-  { id: 'city', name: 'City Park', description: 'Busy park with drones, frisbees, and traffic.', difficulty: 'Hard', colorTheme: '#F0F0F0', thumbnailColor: '#D3D3D3', totalSurvivalTimeRequired: 600000, progressMultiplier: 1.6, bestTimeRequired: 40000 }, // 10 mins total OR 40s in Bathtub
-  { id: 'gym', name: "Average Duck's Gym", description: 'Dodge, duck, dip, dive and dodge! Watch out for wrenches.', difficulty: 'Hard', colorTheme: '#DEB887', thumbnailColor: '#D2B48C', totalSurvivalTimeRequired: 1800000, progressMultiplier: 1.8, bestTimeRequired: 30000 }, // 30 mins total OR 30s in City
-  { id: 'billiards', name: 'Bill-iards Table', description: 'A green felt arena with bouncing pool balls.', difficulty: 'Hard', colorTheme: '#2E7D32', thumbnailColor: '#388E3C', totalSurvivalTimeRequired: 3600000, progressMultiplier: 2.0, bestTimeRequired: 35000 }, // 60 mins total OR 35s in Gym
-  { id: 'glitch', name: 'Digital Glitch', description: 'A corrupted zone with erratic pixel hazards.', difficulty: 'Expert', colorTheme: '#1a1a2e', thumbnailColor: '#2a0a40', totalSurvivalTimeRequired: 7200000, progressMultiplier: 2.5, bestTimeRequired: 25000 }, // 120 mins total OR 25s in Billiards
+  { id: 'glacier', name: 'Snowy Glacier', description: 'Slippery ice, falling icicles, and snowballs.', difficulty: 'Medium', colorTheme: '#E0F7FA', thumbnailColor: '#E0F7FA', totalSurvivalTimeRequired: 120000, progressMultiplier: 1.2, bestTimeRequired: 40000 },
+  { id: 'bathtub', name: 'Bathtub Battle', description: 'Slippery tiles, soap bubbles, and shampoo bottles!', difficulty: 'Medium', colorTheme: '#E0F2F1', thumbnailColor: '#B2DFDB', totalSurvivalTimeRequired: 300000, progressMultiplier: 1.4, bestTimeRequired: 40000 },
+  { id: 'city', name: 'City Park', description: 'Busy park with drones, frisbees, and traffic.', difficulty: 'Hard', colorTheme: '#F0F0F0', thumbnailColor: '#D3D3D3', totalSurvivalTimeRequired: 600000, progressMultiplier: 1.6, bestTimeRequired: 40000 },
+  { id: 'gym', name: "Average Duck's Gym", description: 'Dodge, duck, dip, dive and dodge! Watch out for wrenches.', difficulty: 'Hard', colorTheme: '#DEB887', thumbnailColor: '#D2B48C', totalSurvivalTimeRequired: 1800000, progressMultiplier: 1.8, bestTimeRequired: 30000 },
+  { id: 'billiards', name: 'Bill-iards Table', description: 'A green felt arena with bouncing pool balls.', difficulty: 'Hard', colorTheme: '#2E7D32', thumbnailColor: '#388E3C', totalSurvivalTimeRequired: 3600000, progressMultiplier: 2.0, bestTimeRequired: 35000 },
+  { id: 'glitch', name: 'Digital Glitch', description: 'A corrupted zone with erratic pixel hazards.', difficulty: 'Expert', colorTheme: '#1a1a2e', thumbnailColor: '#2a0a40', totalSurvivalTimeRequired: 7200000, progressMultiplier: 2.5, bestTimeRequired: 25000 },
   { id: 'christmas', name: 'Winter Wonderland', description: 'Festive holiday cheer with gifts and ornaments!', difficulty: 'Medium', colorTheme: '#F0F8FF', thumbnailColor: '#E3F2FD', isSeasonal: true, seasonalDeadline: 'Ends in 14 days', totalSurvivalTimeRequired: 0, progressMultiplier: 1.2 },
 ];
 export const SKINS: Skin[] = [
   { id: 'default', name: 'Classic', color: '#FFD700', rarity: 'common', accessory: 'none', description: 'Just a regular duck.', trailType: 'standard' },
-  { id: 'pinky', name: 'Pinky', color: '#FF69B4', rarity: 'common', accessory: 'none', description: 'Unlock: Play 5 games.', trailType: 'standard' },
-  { id: 'ninja', name: 'Ninja', color: '#333333', rarity: 'rare', accessory: 'headband', description: 'Unlock: Survive 30s in one run.', trailType: 'smoke' },
-  { id: 'gentleman', name: 'Posh Quack', color: '#FFD700', rarity: 'rare', accessory: 'tophat', description: 'Purchase in Shop', cost: 5000, trailType: 'sparkle' },
-  { id: 'cool', name: 'Cool Duck', color: '#FFD700', rarity: 'rare', accessory: 'sunglasses', description: 'Unlock: Survive 5 mins total.', trailType: 'snow' },
-  { id: 'lafleur', name: 'Duck La Fleur', color: '#FFD700', rarity: 'epic', accessory: 'headband_simple', description: 'Unlock: Unlock Gym Map.', trailType: 'lafleur_trail' },
+  { id: 'pinky', name: 'Pinky', color: '#FF69B4', rarity: 'rare', accessory: 'none', description: 'Unlock: Complete Tier 3 in Lily Pond Challenge', trailType: 'standard' },
+  { id: 'ninja', name: 'Ninja', color: '#333333', rarity: 'epic', accessory: 'headband', description: 'Unlock: Complete Tier 3 in City Park Challenge', trailType: 'smoke' },
+  { id: 'gentleman', name: 'Posh Quack', color: '#FFD700', rarity: 'epic', accessory: 'tophat', description: 'Unlock: Complete Tier 3 in Billiards Challenge', trailType: 'sparkle' },
+  { id: 'cool', name: 'Cool Duck', color: '#FFD700', rarity: 'rare', accessory: 'sunglasses', description: 'Unlock: Complete Tier 3 in Snowy Glacier Challenge', trailType: 'snow' },
+  { id: 'lafleur', name: 'Duck La Fleur', color: '#FFD700', rarity: 'legendary', accessory: 'headband_simple', description: 'Unlock: Complete Tier 3 in Gym Challenge', trailType: 'lafleur_trail' },
   { id: 'astro', name: 'Astro', color: '#E0E0E0', rarity: 'epic', accessory: 'helmet', description: 'Purchase in Shop', cost: 10000, trailType: 'smoke' },
-  { id: 'sir_quacks_alot', name: 'Sir Quacks A Lot', color: '#FFD700', rarity: 'epic', accessory: 'knight', description: 'Purchase in Shop', cost: 10000, trailType: 'dust' },
+  { id: 'sir_quacks_alot', name: 'Sir Quacks A Lot', color: '#FFD700', rarity: 'legendary', accessory: 'knight', description: 'Unlock: Complete Tier 3 in Wonderland Challenge', trailType: 'dust' },
   { id: 'mother_ducker', name: 'Mother Ducker', color: '#5D4037', rarity: 'legendary', accessory: 'cap_cigar', description: 'Unlock: Unlock all standard maps.', trailType: 'smoke' },
-  { id: 'quackers', name: 'Quackers', color: '#40E0D0', rarity: 'rare', accessory: 'vest_crazy', description: 'Unlock: Survive 100s in one run.', trailType: 'bubble' },
+  { id: 'quackers', name: 'Quackers', color: '#40E0D0', rarity: 'epic', accessory: 'vest_crazy', description: 'Unlock: Complete Tier 3 in Bathtub Challenge', trailType: 'bubble' },
   { id: 'cyber', name: 'Cyber Duck', color: '#00FFFF', rarity: 'legendary', accessory: 'visor', description: 'Purchase in Shop', cost: 15000, trailType: 'binary' },
   { id: 'magma', name: 'Magma Duck', color: '#FF4500', rarity: 'legendary', accessory: 'flames', description: 'Purchase in Shop', cost: 15000, trailType: 'fire' },
-  { id: 'glitch_duck', name: 'Glitch Duck', color: '#000000', rarity: 'legendary', accessory: 'none', description: 'Unlock: ???', trailType: 'binary' },
+  { id: 'glitch_duck', name: 'Glitch Duck', color: '#000000', rarity: 'legendary', accessory: 'none', description: 'Unlock: Complete Tier 3 in Glitch Challenge', trailType: 'binary' },
 ];
 export const BIOME_DIFFICULTY: Record<string, DifficultyConfig> = {
   'pond': {
@@ -130,46 +136,46 @@ export const BIOME_DIFFICULTY: Record<string, DifficultyConfig> = {
     patternDelayMultiplier: 2.5,
   },
   'glacier': {
-    spawnRateInitial: 1400,
-    spawnRateDecay: 60,
-    hazardSpeedMultiplier: 0.75,
-    hazardSpawnCap: 500,
+    spawnRateInitial: 1800,
+    spawnRateDecay: 40,
+    hazardSpeedMultiplier: 0.6,
+    hazardSpawnCap: 600,
     patternDelayMultiplier: 1.5,
   },
   'bathtub': {
-    spawnRateInitial: 1300,
-    spawnRateDecay: 65,
-    hazardSpeedMultiplier: 0.7,
-    hazardSpawnCap: 450,
+    spawnRateInitial: 1600,
+    spawnRateDecay: 45,
+    hazardSpeedMultiplier: 0.65,
+    hazardSpawnCap: 550,
     patternDelayMultiplier: 1.6,
   },
   'city': {
-    spawnRateInitial: 1300,
-    spawnRateDecay: 70,
-    hazardSpeedMultiplier: 0.8,
-    hazardSpawnCap: 450,
-    patternDelayMultiplier: 1.3,
+    spawnRateInitial: 2000,
+    spawnRateDecay: 35,
+    hazardSpeedMultiplier: 0.55,
+    hazardSpawnCap: 650,
+    patternDelayMultiplier: 1.6,
   },
   'gym': {
-    spawnRateInitial: 1800, // Significantly slower start (was 1400)
-    spawnRateDecay: 30,     // Much slower ramp up (was 50)
-    hazardSpeedMultiplier: 0.65, // Slower dodgeballs (was 0.8)
-    hazardSpawnCap: 500,    // Fewer max hazards (was 450 - wait, cap is min interval, so higher = fewer)
-    patternDelayMultiplier: 1.0, // More delay between patterns (was 0.9)
+    spawnRateInitial: 2200,
+    spawnRateDecay: 40,
+    hazardSpeedMultiplier: 0.55,
+    hazardSpawnCap: 650,
+    patternDelayMultiplier: 1.3,
   },
   'billiards': {
-    spawnRateInitial: 1400, // Slower start (was 1200)
-    spawnRateDecay: 60,     // Slower ramp up (was 85)
-    hazardSpeedMultiplier: 0.85, // Slower hazards (was 0.95)
-    hazardSpawnCap: 380,
-    patternDelayMultiplier: 1.1,
+    spawnRateInitial: 1800,
+    spawnRateDecay: 45,
+    hazardSpeedMultiplier: 0.6,
+    hazardSpawnCap: 550,
+    patternDelayMultiplier: 1.4,
   },
   'glitch': {
-    spawnRateInitial: 900,
-    spawnRateDecay: 100,
-    hazardSpeedMultiplier: 1.1,
-    hazardSpawnCap: 300,
-    patternDelayMultiplier: 0.5,
+    spawnRateInitial: 1600,
+    spawnRateDecay: 55,
+    hazardSpeedMultiplier: 0.65,
+    hazardSpawnCap: 500,
+    patternDelayMultiplier: 1.0,
   },
   'christmas': {
     spawnRateInitial: 1450,
@@ -186,13 +192,23 @@ export const BIOME_DIFFICULTY: Record<string, DifficultyConfig> = {
     patternDelayMultiplier: 1.0,
   }
 };
+export const CHALLENGE_SEEDS: Record<string, string> = {
+  'pond': 'challenge_pond_v1',
+  'glacier': 'challenge_glacier_v1',
+  'bathtub': 'challenge_bathtub_v1',
+  'city': 'challenge_city_v1',
+  'gym': 'challenge_gym_v1',
+  'billiards': 'challenge_billiards_v1',
+  'glitch': 'challenge_glitch_v1',
+  'christmas': 'challenge_christmas_v1',
+};
 export const COACH_BARRAGE = {
-  INTERVAL_INITIAL: 15000, // 15s
-  INTERVAL_MIN: 10000, // 10s
-  DURATION_INITIAL: 2000, // 2s (Fixed)
-  DURATION_MAX: 2000, // 2s (Fixed)
-  SPAWN_RATE: 200, // ms between throws
-  WARNING_TIME: 1500, // 1.5s telegraph
+  INTERVAL_INITIAL: 15000,
+  INTERVAL_MIN: 10000,
+  DURATION_INITIAL: 2000,
+  DURATION_MAX: 2000,
+  SPAWN_RATE: 200,
+  WARNING_TIME: 1500,
 };
 export const GAME_CONSTANTS = {
   CANVAS_WIDTH: 720,
@@ -276,7 +292,7 @@ export const GAME_CONSTANTS = {
     ROAD_GRAY: '#D3D3D3',
     GLITCH_GRID: '#2a0a40',
     CHRISTMAS_SNOW: '#FFFFFF',
-    HAZARD_ROCK: '#808080', // Updated to Grey
+    HAZARD_ROCK: '#808080',
     HAZARD_ICICLE: '#00BFFF',
     HAZARD_SNOWBALL: '#FFFFFF',
     HAZARD_DRONE: '#333333',
@@ -347,7 +363,7 @@ export const GAME_CONSTANTS = {
   },
   GRACE_PERIOD: 2000,
   DIFFICULTY_TIER_INTERVAL: 15000,
-  LASER_START_TIME: 30000,
+  LASER_START_TIME: 45000, // Delayed from 30000
   PATTERN_LINE_COUNT: 2,
   REPLAY: {
     DURATION_MS: 5000,
@@ -503,7 +519,7 @@ export const DEFAULT_SETTINGS = {
   volume: 0.5,
   isHapticsEnabled: true,
   isReducedMotion: false,
-  isGhostEnabled: true,
+  isGhostEnabled: true, // Kept in type definition but removed from UI toggle
   isBatterySaver: false,
   joystickMode: 'dynamic' as const,
   joystickOpacity: 0.5,

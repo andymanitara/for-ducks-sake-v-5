@@ -249,7 +249,7 @@ export function InfoModal({ onClose, highlightedHazard }: InfoModalProps) {
                                 <p className="text-xs font-bold text-yellow-700 uppercase tracking-wide">Your AI Co-founder</p>
                                 <div className="mt-4 pt-4 border-t border-yellow-200">
                                     <span className="text-[10px] font-black uppercase text-yellow-500 tracking-widest bg-yellow-100 px-2 py-1 rounded-full">
-                                        v1.6.3
+                                        v1.9.0
                                     </span>
                                 </div>
                             </div>

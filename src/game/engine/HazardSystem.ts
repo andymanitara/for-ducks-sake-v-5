@@ -139,7 +139,7 @@ export class HazardSystem {
           }
       }
       // AI Updates - PASS WIDTH AND HEIGHT HERE
-      this.updateHazardAI(h, dt, duckPos, width, height);
+      this.updateHazardAI(h, dt, duckPos, width, height, onEvent);
       // Physics (Movement)
       if (h.hazardType !== 'shower_jet' && h.hazardType !== 'explosion') {
           h.position.x += h.velocity.x * dt;
@@ -344,7 +344,7 @@ export class HazardSystem {
           else soundSynth.playBounce();
       }
   }
-  private updateHazardAI(h: Hazard, dt: number, duckPos: Vector2D, width: number, height: number) {
+  private updateHazardAI(h: Hazard, dt: number, duckPos: Vector2D, width: number, height: number, onEvent?: (event: string, data: any) => void) {
       if (!h.aiState) return;
       h.aiTimer = (h.aiTimer || 0) + dt;
       if (h.hazardType === 'frog') {
@@ -400,16 +400,28 @@ export class HazardSystem {
               }
           }
       } else if (h.hazardType === 'drone') {
-          const dx = duckPos.x - h.position.x;
-          const dy = duckPos.y - h.position.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist > 0) {
-              const targetDirX = dx / dist;
-              const targetDirY = dy / dist;
-              const turnSpeed = GAME_CONSTANTS.AI.DRONE_TURN_SPEED * dt;
-              const currentSpeed = Math.sqrt(h.velocity.x**2 + h.velocity.y**2);
-              h.velocity.x += (targetDirX * currentSpeed - h.velocity.x) * turnSpeed;
-              h.velocity.y += (targetDirY * currentSpeed - h.velocity.y) * turnSpeed;
+          if (h.aiState === 'track') {
+              h.trackingTimer = (h.trackingTimer || 0) + dt;
+              const dx = duckPos.x - h.position.x;
+              const dy = duckPos.y - h.position.y;
+              const dist = Math.sqrt(dx*dx + dy*dy);
+              if (dist > 0) {
+                  const targetDirX = dx / dist;
+                  const targetDirY = dy / dist;
+                  const turnSpeed = GAME_CONSTANTS.AI.DRONE_TURN_SPEED * dt;
+                  const currentSpeed = Math.sqrt(h.velocity.x**2 + h.velocity.y**2);
+                  h.velocity.x += (targetDirX * currentSpeed - h.velocity.x) * turnSpeed;
+                  h.velocity.y += (targetDirY * currentSpeed - h.velocity.y) * turnSpeed;
+              }
+              // Stop tracking after 2.5 seconds and fly away
+              if (h.trackingTimer > 2.5) {
+                  // Trigger lock event BEFORE changing state to ensure it happens once
+                  if (onEvent) onEvent('drone_lock', h);
+                  h.aiState = 'leave';
+                  h.aiTimer = 0;
+                  // Drone now maintains its current velocity vector and continues
+                  // in the direction it was last tracking, instead of retreating from center.
+              }
           }
       } else if (h.hazardType === 'laser') {
           if (h.aiState === 'warning') {
@@ -563,7 +575,8 @@ export class HazardSystem {
       velocity: { x: vx, y: vy },
       radius, width, height, rotation,
       color, spawnTimer: 0, wobbleOffset: this.rng() * Math.PI * 2,
-      aiState, aiTimer: 0, bounces: 0, maxBounces, hasTriggeredCloseCall: false
+      aiState, aiTimer: 0, bounces: 0, maxBounces, hasTriggeredCloseCall: false,
+      trackingTimer: 0
     });
     let material: 'metal' | 'wood' | 'soft' | 'glitch' | 'energy' = 'wood';
     if (['drone', 'wrench', 'spanner', 'dodgeball', 'pool_ball_white', 'pool_ball_red', 'pool_ball_yellow'].includes(type)) material = 'metal';

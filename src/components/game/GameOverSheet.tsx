@@ -2,20 +2,21 @@ import React, { useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Share2, Home, Trophy, Loader2, Eye, Swords, Skull, BookOpen, Zap, Coins, Bomb, Lock, TrendingUp, Waves, Activity, CircleDot } from 'lucide-react';
+import { RotateCcw, Share2, Home, Trophy, Loader2, Eye, Swords, Skull, BookOpen, Zap, Coins, Bomb, Lock, TrendingUp, Waves, Activity, CircleDot, Gift, CheckCircle2, Crown } from 'lucide-react';
 import { soundSynth } from '@/game/SoundSynth';
 import { haptics } from '@/game/Haptics';
 import { toast } from 'sonner';
 import { GameEngine } from '@/game/GameEngine';
 import { DuckAvatar } from './DuckAvatar';
-import { HAZARD_INFO, MAPS } from '@/game/constants';
+import { HAZARD_INFO, MAPS, CHALLENGE_TIERS, MAP_CHALLENGE_REWARDS } from '@/game/constants';
 import { cn, formatLargeTime } from '@/lib/utils';
 import { HazardPreview } from './HazardPreview';
 interface GameOverSheetProps {
     onWatchReplay?: () => void;
     onOpenStrategy?: (hazardType: string) => void;
+    onOpenChallenges?: () => void;
 }
-export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetProps) {
+export function GameOverSheet({ onWatchReplay, onOpenStrategy, onOpenChallenges }: GameOverSheetProps) {
   const score = useGameStore(state => state.score);
   const profile = useGameStore(state => state.profile);
   const lastRunStats = useGameStore(state => state.lastRunStats);
@@ -28,9 +29,7 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
   const replayViewMode = useGameStore(state => state.replayViewMode);
   const shareRequested = useGameStore(state => state.shareRequested);
   const setShareRequested = useGameStore(state => state.setShareRequested);
-  const setShowChallengeModal = useGameStore(state => state.setShowChallengeModal);
   const gameMode = useGameStore(state => state.gameMode);
-  const challengeTarget = useGameStore(state => state.challengeTarget);
   const biome = lastRunStats?.biome || 'pond';
   // Get map-specific best time
   const mapStats = profile?.mapStats?.[biome];
@@ -42,17 +41,38 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
   const showerPushes = lastRunStats?.showerPushes || 0;
   const wrenchDodges = lastRunStats?.wrenchDodges || 0;
   const ballsPocketed = lastRunStats?.ballsPocketed || 0;
+  const challengeBonus = lastRunStats?.challengeBonus || 0;
   // Progression Stats
   const multiplier = lastRunStats?.multiplier || 1;
   const adjustedTime = lastRunStats?.adjustedSurvivalTime || 0;
   const formatTime = (ms: number) => (ms / 1000).toFixed(2) + 's';
   const isVideoSupported = useMemo(() => GameEngine.isVideoSupported(), []);
   // Mode Logic
-  const isChallenge = gameMode === 'challenge' && challengeTarget !== null;
+  const isChallenge = gameMode === 'challenge';
   const isDaily = gameMode === 'daily';
-  const isVictory = isChallenge && score > challengeTarget!;
   // Conditional Retry Logic
-  const showRetry = gameMode === 'normal';
+  const showRetry = true; // Always allow retry
+  // Show Rank Button Logic
+  const isChallengeOrDaily = isChallenge || isDaily;
+  const showRankButton = isChallengeOrDaily && !!onOpenChallenges;
+  // Challenge Rewards Calculation (Visual Only)
+  const challengeRewards = useMemo(() => {
+      if (!isChallenge) return [];
+      const rewards = [];
+      // Tier 1
+      if (score >= CHALLENGE_TIERS[0].time) {
+          rewards.push({ label: "Tier 1", icon: Coins, color: "text-yellow-600", bg: "bg-yellow-100" });
+      }
+      // Tier 2
+      if (score >= CHALLENGE_TIERS[1].time) {
+          rewards.push({ label: "Tier 2", icon: Coins, color: "text-yellow-600", bg: "bg-yellow-100" });
+      }
+      // Tier 3
+      if (score >= CHALLENGE_TIERS[2].time) {
+          rewards.push({ label: "Tier 3", icon: Crown, color: "text-purple-600", bg: "bg-purple-100" });
+      }
+      return rewards;
+  }, [isChallenge, score]);
   // Progression Logic (Next Map Unlock)
   const nextUnlockInfo = useMemo(() => {
       if (!profile || gameMode !== 'normal') return null;
@@ -139,10 +159,6 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
         startReplayGeneration();
     }
   };
-  const handleChallenge = () => {
-      soundSynth.playClick();
-      setShowChallengeModal(true);
-  };
   const handleDuckClick = () => {
       soundSynth.playQuack();
       haptics.soft();
@@ -160,15 +176,9 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
       headerColor = "text-blue-600 font-black";
       scoreColor = "text-blue-600";
   } else if (isChallenge) {
-      if (isVictory) {
-          headerText = "VICTORY!";
-          headerColor = "text-green-600 font-black";
-          scoreColor = "text-green-600";
-      } else {
-          headerText = "DEFEAT";
-          headerColor = "text-red-600 font-black";
-          scoreColor = "text-red-600";
-      }
+      headerText = "CHALLENGE RUN";
+      headerColor = "text-purple-600 font-black";
+      scoreColor = "text-purple-600";
   } else if (isNewRecord) {
       headerText = "NEW RECORD!";
       headerColor = "text-orange-500 font-black";
@@ -188,7 +198,7 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
           "rounded-t-3xl border-t-2 border-x-2 border-black/80 shadow-[0_-4px_10px_rgba(0,0,0,0.1)] p-4 flex flex-col gap-2 relative overflow-hidden max-h-[85vh]",
           // Safe area padding to prevent cutoff on mobile devices
           "pb-[calc(3.5rem+env(safe-area-inset-bottom))]",
-          isChallenge ? (isVictory ? "bg-green-50" : "bg-red-50") : (isDaily ? "bg-blue-50" : "bg-white")
+          isChallenge ? "bg-purple-50" : (isDaily ? "bg-blue-50" : "bg-white")
       )}>
         {/* Decorative Top Handle */}
         <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-black/10 rounded-full" />
@@ -203,7 +213,7 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
                 >
                     <DuckAvatar
                         skinId={profile?.equippedSkinId || 'default'}
-                        emotion={isVictory ? 'excited' : 'dizzy'}
+                        emotion={isNewRecord ? 'excited' : 'dizzy'}
                         className="w-10 h-10 drop-shadow-sm"
                     />
                 </motion.div>
@@ -226,15 +236,10 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
             {/* Best Time / Target Badge */}
             <div className="flex flex-col items-end gap-1">
                 {isChallenge ? (
-                    <div className={cn(
-                        "flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-sm transition-colors",
-                        isVictory
-                            ? "bg-green-200 border-green-400 text-green-800"
-                            : "bg-red-200 border-red-400 text-red-800"
-                    )}>
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-sm bg-purple-200 border-purple-400 text-purple-800">
                         <Swords className="w-3 h-3 fill-current" />
                         <span className="text-[10px] font-black uppercase tracking-wide">
-                            TARGET: {formatTime(challengeTarget!)}
+                            CHALLENGE
                         </span>
                     </div>
                 ) : isDaily ? (
@@ -257,6 +262,15 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
                         </span>
                     </div>
                 )}
+                {/* Challenge Bonus Badge */}
+                {challengeBonus > 0 && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-purple-400 bg-purple-100 text-purple-800 shadow-sm animate-pulse-subtle">
+                        <Gift className="w-3 h-3 fill-purple-500 text-purple-600" />
+                        <span className="text-[10px] font-black uppercase tracking-wide">
+                            BONUS +{challengeBonus}
+                        </span>
+                    </div>
+                )}
                 {/* Coins Earned Badge */}
                 {coinsEarned > 0 && (
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-yellow-400 bg-yellow-100 text-yellow-800 shadow-sm">
@@ -268,6 +282,20 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
                 )}
             </div>
         </div>
+        {/* Challenge Tiers Progress */}
+        {isChallenge && (
+            <div className="flex gap-2 mt-2">
+                {CHALLENGE_TIERS.map((tier, idx) => {
+                    const isMet = score >= tier.time;
+                    return (
+                        <div key={tier.id} className={cn(
+                            "flex-1 h-2 rounded-full border border-black/10 overflow-hidden",
+                            isMet ? "bg-green-500" : "bg-gray-200"
+                        )} />
+                    );
+                })}
+            </div>
+        )}
         {/* Progression Bar (Next Unlock) */}
         {nextUnlockInfo && (
             <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-2 mt-1 shadow-sm">
@@ -392,7 +420,7 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
             </div>
         )}
         {/* Action Buttons Grid - Compact Icon Only */}
-        <div className={cn("grid gap-2 mt-1", showRetry ? "grid-cols-5" : "grid-cols-4")}>
+        <div className={cn("grid gap-2 mt-1", showRetry ? (showRankButton ? "grid-cols-5" : "grid-cols-4") : "grid-cols-3")}>
             <Button
                 onClick={handleMenu}
                 className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 text-black border-2 border-black/10 shadow-sm active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center"
@@ -427,13 +455,15 @@ export function GameOverSheet({ onWatchReplay, onOpenStrategy }: GameOverSheetPr
                     <Share2 className="w-5 h-5 text-gray-300" />
                 </div>
             )}
-            <Button
-                onClick={handleChallenge}
-                className="h-12 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border-2 border-purple-200 shadow-sm active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center"
-                title="Challenge Friend"
-            >
-                <Swords className="w-5 h-5" />
-            </Button>
+            {showRankButton && (
+                <Button
+                    onClick={() => { soundSynth.playClick(); onOpenChallenges?.(); }}
+                    className="h-12 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 border-2 border-purple-300 shadow-sm active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center"
+                    title="View Rank"
+                >
+                    <Trophy className="w-5 h-5" />
+                </Button>
+            )}
             {showRetry && (
                 <Button
                     onClick={handleRetry}

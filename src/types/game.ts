@@ -66,6 +66,7 @@ export interface Hazard extends Entity {
   // AI Props
   aiState?: 'idle' | 'charge' | 'jump' | 'track' | 'warning' | 'active' | 'leave' | 'dead';
   aiTimer?: number;
+  trackingTimer?: number;
   target?: Vector2D;
   laserEndpoints?: { start: Vector2D, end: Vector2D };
   // Bouncing Physics
@@ -121,7 +122,7 @@ export interface InputState {
   current: Vector2D;
   vector: Vector2D; // Normalized -1 to 1
 }
-export type LeaderboardCategory = 'daily' | 'global' | 'seasonal' | 'daily_challenge';
+export type LeaderboardCategory = 'daily' | 'global' | 'seasonal' | 'daily_challenge' | 'friends';
 export interface LeaderboardEntry {
   rank: number;
   name: string;
@@ -129,6 +130,7 @@ export interface LeaderboardEntry {
   skinId: string;
   userId: string; // Added to match backend response
   date?: number;  // Added timestamp from backend
+  playerName?: string;
 }
 // Replay System Types
 export interface ReplayFrame {
@@ -171,6 +173,7 @@ export interface PlayerProfile {
   equippedSkinId: string;
   unlockedSkinIds: string[];
   unlockedMapIds: string[];
+  lastPlayedMapId?: BiomeType;
   // New Stats
   totalNearMisses: number;
   // Currency
@@ -183,12 +186,14 @@ export interface PlayerProfile {
   // Social
   friendCode?: string;
   bestRunGhost?: string; // Stringified GhostData
-  // Daily Challenge
-  dailyAttempts: number;
-  lastDailyAttemptDate: string; // ISO Date string (YYYY-MM-DD)
-  claimedRewardDates?: string[]; // Array of dates (YYYY-MM-DD) for which rewards have been claimed
   // Achievements
   claimedAchievementIds: string[]; // IDs of achievements where reward has been claimed
+  // Daily Challenge
+  dailyAttempts?: number;
+  lastDailyAttemptDate?: string;
+  claimedRewardDates?: string[];
+  // Challenge Completion
+  completedChallengeIds: string[]; // IDs of completed static challenges (e.g. "challenge-pond-30000")
 }
 // Social System
 export interface Friend {
@@ -253,6 +258,8 @@ export interface RunStats {
   baseSurvivalTime?: number;
   multiplier?: number;
   adjustedSurvivalTime?: number;
+  // Challenge Bonus
+  challengeBonus?: number;
 }
 // Achievement System
 export interface Achievement {

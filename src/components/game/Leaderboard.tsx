@@ -1,59 +1,75 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
+import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
-import { X, Trophy, Calendar, Globe, Crown, ChevronDown, Lock, RefreshCw, AlertTriangle, Clock } from 'lucide-react';
+import { X, Trophy, Globe, Lock, Users } from 'lucide-react';
 import { LeaderboardCategory, LeaderboardEntry } from '@/types/game';
 import { soundSynth } from '@/game/SoundSynth';
 import { DuckAvatar } from './DuckAvatar';
-import { formatDistanceToNow } from 'date-fns';
 import { MAPS } from '@/game/constants';
-import { cn, getTimeUntilNextDailyReset } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { MapPreview } from './MapPreview';
-import { LoadingDuck } from '@/components/ui/loading-duck';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { LeaderboardTable } from './LeaderboardTable';
 interface LeaderboardProps {
   onClose: () => void;
 }
 export function Leaderboard({ onClose }: LeaderboardProps) {
-  const activeTab = useGameStore(state => state.activeLeaderboardTab);
-  const setTab = useGameStore(state => state.setLeaderboardTab);
-  const profile = useGameStore(state => state.profile);
-  const leaderboardData = useGameStore(state => state.leaderboardData);
-  const userRank = useGameStore(state => state.userRank);
-  const isLoading = useGameStore(state => state.isLoadingLeaderboard);
-  const leaderboardError = useGameStore(state => state.leaderboardError);
-  const fetchLeaderboard = useGameStore(state => state.fetchLeaderboard);
-  const viewUserProfile = useGameStore(state => state.viewUserProfile);
-  // Local state for map selection within leaderboard (independent of game biome)
-  const [selectedMapId, setSelectedMapId] = useState<string>(useGameStore.getState().biome);
-  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(getTimeUntilNextDailyReset());
-  // Timer Effect
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeRemaining(getTimeUntilNextDailyReset());
-    }, 60000); // Update every minute
-    return () => clearInterval(timer);
-  }, []);
+  const {
+    activeTab,
+    setTab,
+    profile,
+    leaderboardData,
+    userRank,
+    isLoading,
+    leaderboardError,
+    fetchLeaderboard,
+    viewUserProfile,
+    fetchFriendsLeaderboard,
+    friendsLeaderboard,
+    isLoadingFriendsLeaderboard,
+    friendsLeaderboardError
+  } = useGameStore(useShallow(state => ({
+    activeTab: state.activeLeaderboardTab,
+    setTab: state.setLeaderboardTab,
+    profile: state.profile,
+    leaderboardData: state.leaderboardData,
+    userRank: state.userRank,
+    isLoading: state.isLoadingLeaderboard,
+    leaderboardError: state.leaderboardError,
+    fetchLeaderboard: state.fetchLeaderboard,
+    viewUserProfile: state.viewUserProfile,
+    fetchFriendsLeaderboard: state.fetchFriendsLeaderboard,
+    friendsLeaderboard: state.friendsLeaderboard,
+    isLoadingFriendsLeaderboard: state.isLoadingFriendsLeaderboard,
+    friendsLeaderboardError: state.friendsLeaderboardError
+  })));
+  // Local state for map selection
+  const [selectedMapId, setSelectedMapId] = useState<string>(
+    profile?.lastPlayedMapId || MAPS[0].id
+  );
   // Fetch data when tab or map changes
   useEffect(() => {
-    const type = activeTab === 'daily' ? 'daily' : 'global';
-    fetchLeaderboard(selectedMapId, type);
-  }, [activeTab, selectedMapId, fetchLeaderboard]);
+    if (activeTab === 'friends') {
+      fetchFriendsLeaderboard(selectedMapId);
+    } else {
+      // Default to global for non-friends tabs in this modal
+      fetchLeaderboard(selectedMapId, 'global');
+    }
+  }, [activeTab, selectedMapId, fetchLeaderboard, fetchFriendsLeaderboard]);
   // Memoized data merging logic
   const displayData = useMemo(() => {
+    // Select base data
+    const rawData = activeTab === 'friends' ? friendsLeaderboard : leaderboardData;
     // If no profile, just return raw data
-    if (!profile) return leaderboardData;
+    if (!profile) return rawData;
     // Clone data to avoid mutation
-    let data = [...leaderboardData];
+    let data = [...rawData];
     // Check if user is already in the list
     const userEntryIndex = data.findIndex(e => e.userId === profile.playerId);
     // Determine the score to use for the user
-    // Priority:
-    // 1. userRank.score (if available and matches current context)
-    // 2. 0 (fallback)
-    // FIX: Strictly check if userRank matches the current map and category
-    // This prevents showing a score from a different map or mode
     const scoreToInject = (userRank?.mapId === selectedMapId && userRank?.category === activeTab)
         ? userRank.score
         : 0;
@@ -65,7 +81,8 @@ export function Leaderboard({ onClose }: LeaderboardProps) {
             score: scoreToInject,
             skinId: profile.equippedSkinId,
             userId: profile.playerId,
-            date: Date.now()
+            date: Date.now(),
+            playerName: profile.displayName
         };
         data.push(localEntry);
     } else if (userEntryIndex !== -1) {
@@ -73,7 +90,8 @@ export function Leaderboard({ onClose }: LeaderboardProps) {
         data[userEntryIndex] = {
             ...data[userEntryIndex],
             name: profile.displayName,
-            skinId: profile.equippedSkinId
+            skinId: profile.equippedSkinId,
+            playerName: profile.displayName
         };
     }
     // Sort by score descending
@@ -83,129 +101,31 @@ export function Leaderboard({ onClose }: LeaderboardProps) {
         ...entry,
         rank: index + 1
     }));
-  }, [leaderboardData, profile, userRank, selectedMapId, activeTab]);
-  const selectedMap = MAPS.find(m => m.id === selectedMapId) || MAPS[0];
+  }, [leaderboardData, friendsLeaderboard, profile, userRank, selectedMapId, activeTab]);
   const unlockedMapIds = profile?.unlockedMapIds || ['pond'];
   const handleMapSelect = (mapId: string) => {
-      if (!unlockedMapIds.includes(mapId)) return;
       soundSynth.playClick();
       setSelectedMapId(mapId);
-      setIsMapPickerOpen(false);
   };
-  const handleTabChange = (tab: LeaderboardCategory) => {
+  const handleTabChange = (tab: string) => {
     soundSynth.playClick();
-    setTab(tab);
+    setTab(tab as LeaderboardCategory);
   };
   const handleRetry = () => {
       soundSynth.playClick();
-      const type = activeTab === 'daily' ? 'daily' : 'global';
-      fetchLeaderboard(selectedMapId, type);
+      if (activeTab === 'friends') {
+        fetchFriendsLeaderboard(selectedMapId);
+      } else {
+        fetchLeaderboard(selectedMapId, 'global');
+      }
   };
   const handleUserClick = (userId: string) => {
       soundSynth.playClick();
       viewUserProfile(userId);
   };
-  const renderTable = () => {
-    if (isLoading) {
-        return (
-            <div className="flex-1 flex items-center justify-center min-h-[200px]">
-                <LoadingDuck text="Fetching Ranks..." />
-            </div>
-        );
-    }
-    if (leaderboardError) {
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 space-y-4 p-8 text-center min-h-[200px]">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2 border-2 border-red-200">
-                    <AlertTriangle className="w-8 h-8 text-red-500" />
-                </div>
-                <div className="max-w-[240px]">
-                    <p className="font-black uppercase text-lg text-gray-600">Connection Failed</p>
-                    <p className="text-xs font-bold text-gray-400 mt-1 break-words px-2 leading-tight">{leaderboardError}</p>
-                </div>
-                <Button
-                    onClick={handleRetry}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-black border-2 border-black shadow-hard active:translate-y-[2px] active:shadow-none"
-                >
-                    <RefreshCw className="w-4 h-4 mr-2" /> RETRY
-                </Button>
-            </div>
-        );
-    }
-    if (displayData.length === 0) {
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 space-y-4 p-8 text-center min-h-[200px]">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                    <DuckAvatar skinId="default" emotion="dizzy" isStatic className="w-20 h-20 opacity-50 grayscale" />
-                </div>
-                <div>
-                    <p className="font-black uppercase text-xl text-gray-500">No scores yet</p>
-                    <p className="text-sm font-bold">Be the first to conquer the {selectedMap.name}!</p>
-                </div>
-            </div>
-        );
-    }
-    return (
-      <div className="flex-1 overflow-hidden relative bg-white rounded-t-2xl border-x-4 border-t-4 border-black shadow-hard mx-1 flex flex-col">
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent p-0">
-            <div className="divide-y-2 divide-gray-100">
-                {displayData.map((entry, index) => {
-                    const isMe = entry.userId === profile?.playerId;
-                    const timeAgo = entry.date ? formatDistanceToNow(entry.date, { addSuffix: true }) : '';
-                    const isTop3 = index < 3;
-                    return (
-                        <div
-                            key={`${entry.rank}-${entry.userId}`}
-                            onClick={() => handleUserClick(entry.userId)}
-                            className={cn(
-                                "flex items-center p-3 gap-3 transition-colors cursor-pointer",
-                                isMe ? "bg-yellow-50 hover:bg-yellow-100" : "hover:bg-gray-50"
-                            )}
-                        >
-                            {/* Rank */}
-                            <div className="w-8 flex justify-center shrink-0">
-                                {index === 0 ? (
-                                    <Crown className="w-6 h-6 text-yellow-500 fill-yellow-200" />
-                                ) : (
-                                    <span className={cn(
-                                        "font-black font-arcade text-lg",
-                                        isTop3 ? "text-black" : "text-gray-400"
-                                    )}>
-                                        {entry.rank}
-                                    </span>
-                                )}
-                            </div>
-                            {/* Avatar */}
-                            <div className="w-10 h-10 rounded-full border-2 border-black/10 overflow-hidden bg-gray-100 shrink-0 relative">
-                                <DuckAvatar skinId={entry.skinId} emotion="idle" isStatic className="w-full h-full transform scale-150 translate-y-[10%]" />
-                            </div>
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <span className={cn("font-black truncate text-sm", isMe && "text-blue-600")}>
-                                        {entry.name} {isMe && "(You)"}
-                                    </span>
-                                </div>
-                                {timeAgo && (
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide flex items-center gap-1">
-                                        {timeAgo}
-                                    </span>
-                                )}
-                            </div>
-                            {/* Score */}
-                            <div className="text-right shrink-0">
-                                <span className="font-arcade font-black text-lg text-black">
-                                    {(entry.score / 1000).toFixed(2)}s
-                                </span>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-      </div>
-    );
-  };
+  // Determine current loading/error state
+  const currentIsLoading = activeTab === 'friends' ? isLoadingFriendsLeaderboard : isLoading;
+  const currentError = activeTab === 'friends' ? friendsLeaderboardError : leaderboardError;
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -231,106 +151,99 @@ export function Leaderboard({ onClose }: LeaderboardProps) {
           <X className="w-6 h-6 stroke-[3px]" />
         </Button>
       </div>
-      {/* Map Selector */}
-      <div className="px-4 pt-4 pb-2 shrink-0 z-20 relative">
-          <button
-            onClick={() => setIsMapPickerOpen(!isMapPickerOpen)}
-            className="w-full bg-white border-4 border-black rounded-xl p-3 flex items-center justify-between shadow-sm active:translate-y-[2px] transition-all"
-          >
-              <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-gray-200 relative">
-                      <MapPreview biome={selectedMapId} className="w-full h-full object-cover" />
+      {/* Map Selector - Horizontal Scroll */}
+      <div className="pt-4 pb-2 shrink-0 z-20 relative bg-white border-b-2 border-gray-100">
+        <ScrollArea className="w-full whitespace-nowrap pb-2">
+          <div className="flex w-max space-x-4 px-4">
+            {MAPS.map((map) => {
+              const isUnlocked = unlockedMapIds.includes(map.id);
+              const isSelected = selectedMapId === map.id;
+              return (
+                <button
+                  key={map.id}
+                  onClick={() => handleMapSelect(map.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 transition-all relative group",
+                    !isUnlocked && "opacity-70"
+                  )}
+                >
+                  <div className={cn(
+                    "w-20 h-20 rounded-xl overflow-hidden border-4 transition-all relative",
+                    isSelected ? "border-blue-500 shadow-hard scale-105" : "border-black/20 group-hover:border-black/40"
+                  )}>
+                    <MapPreview biome={map.id} className="w-full h-full object-cover" />
+                    {!isUnlocked && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Lock className="w-6 h-6 text-white" />
+                      </div>
+                    )}
                   </div>
-                  <div className="text-left">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Current Map</span>
-                      <span className="font-black text-lg uppercase leading-none">{selectedMap.name}</span>
-                  </div>
-              </div>
-              <ChevronDown className={cn("w-6 h-6 transition-transform", isMapPickerOpen && "rotate-180")} />
-          </button>
-          {/* Dropdown */}
-          <AnimatePresence>
-              {isMapPickerOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    style={{ opacity: 0 }}
-                    className="absolute top-full left-4 right-4 mt-2 bg-white border-4 border-black rounded-xl shadow-hard-lg overflow-hidden z-30 max-h-[300px] overflow-y-auto"
-                  >
-                      {MAPS.map(map => {
-                          const isUnlocked = unlockedMapIds.includes(map.id);
-                          return (
-                              <button
-                                key={map.id}
-                                onClick={() => handleMapSelect(map.id)}
-                                disabled={!isUnlocked}
-                                className={cn(
-                                    "w-full p-3 flex items-center gap-3 border-b-2 border-gray-100 last:border-0 text-left transition-colors",
-                                    selectedMapId === map.id ? "bg-blue-50" : "hover:bg-gray-50",
-                                    !isUnlocked && "opacity-50 cursor-not-allowed bg-gray-100"
-                                )}
-                              >
-                                  <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-gray-200 relative shrink-0">
-                                      <MapPreview biome={map.id} className="w-full h-full object-cover" />
-                                      {!isUnlocked && (
-                                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                              <Lock className="w-4 h-4 text-white" />
-                                          </div>
-                                      )}
-                                  </div>
-                                  <span className="font-black uppercase flex-1">{map.name}</span>
-                                  {selectedMapId === map.id && <div className="w-3 h-3 bg-blue-500 rounded-full" />}
-                              </button>
-                          );
-                      })}
-                  </motion.div>
-              )}
-          </AnimatePresence>
+                  <span className={cn(
+                    "text-xs font-black uppercase tracking-wide",
+                    isSelected ? "text-blue-600" : "text-gray-400"
+                  )}>
+                    {map.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
-      {/* Custom Tabs */}
-      <div className="flex-1 flex flex-col min-h-0 px-4 pb-4">
-        <div className="grid w-full grid-cols-2 mb-4 border-4 border-black bg-white p-1 h-auto rounded-xl shadow-hard shrink-0 gap-1">
-            <button
-                onClick={() => handleTabChange('daily')}
-                className={cn(
-                    "font-black py-2 rounded-lg border-2 transition-all flex flex-col items-center leading-none gap-1",
-                    activeTab === 'daily'
-                        ? "bg-yellow-400 text-black border-black"
-                        : "bg-transparent text-gray-500 border-transparent hover:bg-gray-100"
-                )}
+      {/* Tabs & Content */}
+      <div className="flex-1 flex flex-col min-h-0 px-4 pb-4 pt-2">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
+          <TabsList className="grid w-full grid-cols-2 mb-4 border-4 border-black bg-white p-1 h-auto rounded-xl shadow-hard shrink-0 gap-1">
+            <TabsTrigger
+              value="global"
+              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white font-black py-2 rounded-lg border-2 border-transparent data-[state=active]:border-black transition-all flex flex-col items-center leading-none gap-1"
             >
-                <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3 h-3" /> <span>DAILY</span>
-                </div>
-                <span className="text-[8px] opacity-60 font-bold flex items-center gap-1">
-                    <Clock className="w-2 h-2" /> ENDS IN {timeRemaining}
-                </span>
-            </button>
-            <button
-                onClick={() => handleTabChange('global')}
-                className={cn(
-                    "font-black py-2 rounded-lg border-2 transition-all flex flex-col items-center leading-none gap-1",
-                    activeTab === 'global'
-                        ? "bg-gray-800 text-white border-black"
-                        : "bg-transparent text-gray-500 border-transparent hover:bg-gray-100"
-                )}
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-3 h-3" /> <span>GLOBAL</span>
+              </div>
+              <span className="text-[8px] opacity-60 font-bold">ALL-TIME</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="friends"
+              className="data-[state=active]:bg-blue-500 data-[state=active]:text-white font-black py-2 rounded-lg border-2 border-transparent data-[state=active]:border-black transition-all flex flex-col items-center leading-none gap-1"
             >
-                <div className="flex items-center gap-1.5">
-                    <Globe className="w-3 h-3" /> <span>GLOBAL</span>
-                </div>
-                <span className="text-[8px] opacity-60 font-bold">ALL-TIME</span>
-            </button>
-        </div>
-        {/* Content Area */}
-        <div className="flex-1 flex flex-col min-h-0">
-            {renderTable()}
-        </div>
+              <div className="flex items-center gap-1.5">
+                <Users className="w-3 h-3" /> <span>FRIENDS</span>
+              </div>
+              <span className="text-[8px] opacity-60 font-bold">TOP SCORES</span>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="global" className="flex-1 min-h-0 mt-0">
+            <LeaderboardTable
+              data={displayData}
+              isLoading={currentIsLoading}
+              error={currentError}
+              onRetry={handleRetry}
+              profile={profile}
+              selectedMapId={selectedMapId}
+              onUserClick={handleUserClick}
+              className="h-full"
+            />
+          </TabsContent>
+          <TabsContent value="friends" className="flex-1 min-h-0 mt-0">
+            <LeaderboardTable
+              data={displayData}
+              isLoading={currentIsLoading}
+              error={currentError}
+              onRetry={handleRetry}
+              profile={profile}
+              selectedMapId={selectedMapId}
+              onUserClick={handleUserClick}
+              className="h-full"
+            />
+          </TabsContent>
+        </Tabs>
       </div>
       {/* Sticky User Rank Footer */}
       {(() => {
           const myEntry = displayData.find(e => e.userId === profile?.playerId);
-          if (!myEntry || leaderboardError) return null;
+          if (!myEntry || currentError) return null;
           return (
             <div className="border-t-4 border-black bg-white p-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] shrink-0 z-20">
                 <div className="flex items-center justify-between bg-blue-50 border-2 border-blue-200 rounded-xl p-3">

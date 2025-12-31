@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
-import { X, Volume2, VolumeX, Volume1, Settings, Smartphone, SmartphoneNfc, EyeOff, Eye, Ghost, Battery, BatteryCharging, RotateCcw, Download } from 'lucide-react';
+import { X, Volume2, VolumeX, Volume1, Settings, Smartphone, SmartphoneNfc, EyeOff, Eye, Battery, BatteryCharging, RotateCcw, Download } from 'lucide-react';
 import { soundSynth } from '@/game/SoundSynth';
 import { haptics } from '@/game/Haptics';
 import { CustomToggle } from '@/components/ui/custom-toggle';
@@ -18,13 +18,11 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const volume = useGameStore(state => state.volume);
   const isHapticsEnabled = useGameStore(state => state.isHapticsEnabled);
   const isReducedMotion = useGameStore(state => state.isReducedMotion);
-  const isGhostEnabled = useGameStore(state => state.isGhostEnabled);
   const isBatterySaver = useGameStore(state => state.isBatterySaver);
   const toggleAudio = useGameStore(state => state.toggleAudio);
   const setVolume = useGameStore(state => state.setVolume);
   const toggleHaptics = useGameStore(state => state.toggleHaptics);
   const toggleReducedMotion = useGameStore(state => state.toggleReducedMotion);
-  const toggleGhost = useGameStore(state => state.toggleGhost);
   const toggleBatterySaver = useGameStore(state => state.toggleBatterySaver);
   const resetSettings = useGameStore(state => state.resetSettings);
   const { isInstallable, promptInstall } = usePwaInstall();
@@ -39,10 +37,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const handleToggleMotion = () => {
     toggleReducedMotion();
     if (isReducedMotion) soundSynth.playClick();
-  };
-  const handleToggleGhost = () => {
-    toggleGhost();
-    if (!isGhostEnabled) soundSynth.playClick();
   };
   const handleToggleBatterySaver = () => {
     toggleBatterySaver();
@@ -122,19 +116,11 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                     color="purple"
                 />
                 <ToggleCard
-                    label="Ghost"
-                    icon={Ghost}
-                    checked={isGhostEnabled}
-                    onChange={handleToggleGhost}
-                    color="cyan"
-                />
-                <ToggleCard
                     label="Battery Saver"
                     icon={isBatterySaver ? BatteryCharging : Battery}
                     checked={isBatterySaver}
                     onChange={handleToggleBatterySaver}
                     color="orange"
-                    className="sm:col-span-2"
                 />
             </div>
             {/* Actions */}
@@ -154,6 +140,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 >
                     <RotateCcw className="w-4 h-4" /> RESET DEFAULTS
                 </Button>
+                <div className="text-center">
+                    <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest mt-4 block">v1.9.0</span>
+                </div>
             </div>
         </div>
       </motion.div>

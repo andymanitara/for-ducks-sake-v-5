@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, SKINS } from './constants';
+import { GAME_CONSTANTS, SKINS } from '@/game/constants';
 import { Duck, Hazard, ScreenShake, Shockwave, RunStats, GhostData, ParticleType } from '../types/game';
 import { InputSystem } from './InputSystem';
 import { Renderer } from './Renderer';
@@ -445,6 +445,8 @@ export class GameEngine {
                 // Rendering is now handled via state polling in draw()
             } else if (event === 'barrage_start') {
                 haptics.warning();
+            } else if (event === 'drone_lock') {
+                soundSynth.playLock();
             }
         }
     );
@@ -598,22 +600,64 @@ export class GameEngine {
     // Ghosts Drawing
     const isGhostEnabled = useGameStore.getState().isGhostEnabled;
     if (this.internalMode === 'playing' && isGhostEnabled) {
-        if (this.ghostRun) {
+        if (this.ghostRun && this.ghostRun.length > 0) {
             while (this.ghostIndex < this.ghostRun.length - 1 && this.ghostRun[this.ghostIndex].timestamp < this.timeElapsed) {
                 this.ghostIndex++;
             }
-            const frame = this.ghostRun[this.ghostIndex];
+            const next = this.ghostRun[this.ghostIndex];
+            const prev = this.ghostIndex > 0 ? this.ghostRun[this.ghostIndex - 1] : next;
+            let frame = next;
+
+            if (next && prev && next !== prev) {
+                const total = next.timestamp - prev.timestamp;
+                const current = this.timeElapsed - prev.timestamp;
+                const alpha = Math.max(0, Math.min(1, total > 0 ? current / total : 0));
+                frame = {
+                    ...next,
+                    x: prev.x + (next.x - prev.x) * alpha,
+                    y: prev.y + (next.y - prev.y) * alpha,
+                    rotation: prev.rotation + (next.rotation - prev.rotation) * alpha
+                };
+            }
+
             if (frame) {
-                this.renderer.drawGhost(frame, 'PB');
+                // Calculate opacity based on distance
+                const dist = Math.sqrt(Math.pow(this.duck.position.x - frame.x, 2) + Math.pow(this.duck.position.y - frame.y, 2));
+                const minOpacity = 0.15;
+                const maxOpacity = 0.6;
+                const fadeDistance = 200;
+                const opacity = Math.min(maxOpacity, Math.max(minOpacity, (dist / fadeDistance) * maxOpacity));
+                this.renderer.drawGhost(frame, 'PB', undefined, opacity);
             }
         }
-        if (this.opponentGhostRun) {
+        if (this.opponentGhostRun && this.opponentGhostRun.length > 0) {
              while (this.opponentGhostIndex < this.opponentGhostRun.length - 1 && this.opponentGhostRun[this.opponentGhostIndex].timestamp < this.timeElapsed) {
                 this.opponentGhostIndex++;
             }
-            const frame = this.opponentGhostRun[this.opponentGhostIndex];
+            const next = this.opponentGhostRun[this.opponentGhostIndex];
+            const prev = this.opponentGhostIndex > 0 ? this.opponentGhostRun[this.opponentGhostIndex - 1] : next;
+            let frame = next;
+
+            if (next && prev && next !== prev) {
+                const total = next.timestamp - prev.timestamp;
+                const current = this.timeElapsed - prev.timestamp;
+                const alpha = Math.max(0, Math.min(1, total > 0 ? current / total : 0));
+                frame = {
+                    ...next,
+                    x: prev.x + (next.x - prev.x) * alpha,
+                    y: prev.y + (next.y - prev.y) * alpha,
+                    rotation: prev.rotation + (next.rotation - prev.rotation) * alpha
+                };
+            }
+
             if (frame) {
-                this.renderer.drawGhost(frame, 'RIVAL', '#FF0000');
+                // Calculate opacity based on distance
+                const dist = Math.sqrt(Math.pow(this.duck.position.x - frame.x, 2) + Math.pow(this.duck.position.y - frame.y, 2));
+                const minOpacity = 0.15;
+                const maxOpacity = 0.6;
+                const fadeDistance = 200;
+                const opacity = Math.min(maxOpacity, Math.max(minOpacity, (dist / fadeDistance) * maxOpacity));
+                this.renderer.drawGhost(frame, 'RIVAL', '#FF0000', opacity);
             }
         }
     }

@@ -12,8 +12,9 @@ interface MapSelectorProps {
   onClose: () => void;
 }
 export function MapSelector({ onClose }: MapSelectorProps) {
-  const currentBiome = useGameStore(state => state.biome);
   const setBiome = useGameStore(state => state.setBiome);
+  const setStatus = useGameStore(state => state.setStatus);
+  const setGameMode = useGameStore(state => state.setGameMode);
   const profile = useGameStore(state => state.profile);
   const unlockedMapIds = profile?.unlockedMapIds || ['pond'];
   const mapStats = profile?.mapStats || {};
@@ -27,8 +28,11 @@ export function MapSelector({ onClose }: MapSelectorProps) {
           toast.error("Map Locked! Accumulate more survival time to unlock.");
           return;
       }
-      soundSynth.playClick();
+      soundSynth.playStart();
       setBiome(mapId);
+      setGameMode('normal');
+      setStatus('playing');
+      onClose();
   };
   const handleRandom = () => {
       const availableMaps = MAPS.filter(m => unlockedMapIds.includes(m.id));
@@ -87,7 +91,6 @@ export function MapSelector({ onClose }: MapSelectorProps) {
                 </div>
                 <div className="grid grid-cols-1 gap-6">
                     {seasonalMaps.map((map) => {
-                        const isSelected = currentBiome === map.id;
                         const stats = mapStats[map.id];
                         const bestTime = stats?.bestTime || 0;
                         // Mastery Check
@@ -99,9 +102,7 @@ export function MapSelector({ onClose }: MapSelectorProps) {
                                 onClick={() => handleSelect(map.id, true)}
                                 className={cn(
                                 "relative rounded-3xl border-4 transition-all cursor-pointer overflow-hidden group",
-                                isSelected
-                                    ? "border-black shadow-hard translate-y-[-2px]"
-                                    : "border-blue-300 hover:border-blue-400 bg-white"
+                                "border-blue-300 hover:border-blue-400 bg-white"
                                 )}
                             >
                                 {/* Map Preview Banner */}
@@ -122,11 +123,6 @@ export function MapSelector({ onClose }: MapSelectorProps) {
                                         <div className="absolute bottom-4 left-4 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full border-2 border-black shadow-sm flex items-center gap-1 z-20">
                                             <Crown className="w-3 h-3 fill-current" />
                                             <span className="text-[10px] font-black uppercase tracking-wide">MASTERED</span>
-                                        </div>
-                                    )}
-                                    {isSelected && (
-                                        <div className="absolute top-4 right-4 bg-green-500 text-white rounded-full p-2 border-2 border-black shadow-sm z-10">
-                                            <Check className="w-6 h-6 stroke-[4px]" />
                                         </div>
                                     )}
                                 </div>
@@ -165,7 +161,6 @@ export function MapSelector({ onClose }: MapSelectorProps) {
             </div>
             <div className="grid grid-cols-1 gap-6">
             {standardMaps.map((map, index) => {
-                const isSelected = currentBiome === map.id;
                 const isUnlocked = unlockedMapIds.includes(map.id);
                 const stats = mapStats[map.id];
                 const bestTime = stats?.bestTime || 0;
@@ -193,11 +188,9 @@ export function MapSelector({ onClose }: MapSelectorProps) {
                     onClick={() => handleSelect(map.id, isUnlocked)}
                     className={cn(
                     "relative rounded-3xl border-4 transition-all cursor-pointer overflow-hidden group",
-                    isSelected
-                        ? "border-black shadow-hard translate-y-[-2px]"
-                        : isUnlocked
-                            ? "border-gray-300 hover:border-gray-400 bg-white"
-                            : "border-gray-200 bg-gray-100 opacity-90"
+                    isUnlocked
+                        ? "border-gray-300 hover:border-gray-400 bg-white"
+                        : "border-gray-200 bg-gray-100 opacity-90"
                     )}
                 >
                     {/* Map Preview Banner */}
@@ -213,11 +206,6 @@ export function MapSelector({ onClose }: MapSelectorProps) {
                             <div className="absolute top-4 left-4 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full border-2 border-black shadow-sm flex items-center gap-1 z-20">
                                 <Crown className="w-3 h-3 fill-current" />
                                 <span className="text-[10px] font-black uppercase tracking-wide">MASTERED</span>
-                            </div>
-                        )}
-                        {isSelected && (
-                            <div className="absolute top-4 right-4 bg-green-500 text-white rounded-full p-2 border-2 border-black shadow-sm z-10">
-                                <Check className="w-6 h-6 stroke-[4px]" />
                             </div>
                         )}
                         {!isUnlocked && (
